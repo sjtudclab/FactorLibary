@@ -6,17 +6,17 @@ w.start()
 # 获取所有的A股 IPO > 3个月的股票
 
 # 获取周数据（有些字段参数不同，需分成若干次拉取）
-fields1 = ['close', 'mkt_cap_float', 'roa', 'mfd_buyamt_d', 'mfd_sellamt_d', 'pe', 'pb']
+fields1 = ['windcode','sec_name','ipo_date','close', 'mkt_cap_float', 'mfd_buyamt_d', 'mfd_sellamt_d', 'roa', 'pe', 'pb']
 # 定义某些指标需要的参数，收盘价向后复权
-option = ['traderType=1','ruleType=1','Period=W']
+option = ["ruleType=8;unit=1;traderType=1;Period=W;Fill=Previous;PriceAdj=B"]
 
 # 获取所有A股所需数据
 print('Pull market quotation data: Start')
-security = '000566.SZ'
-startTime = '2016-12-30'
+security = '600000.SH'
+startTime = '2015-12-30'
 endTime = '2017-03-20'
 
-wsd_data = w.wsd(security, fields, startTime, endTime, option)
+wsd_data = w.wsd(security, fields1, startTime, endTime, option)
 
 for x in wsd_data.Fields:
         print('\t' + str(x))
