@@ -1,3 +1,5 @@
+'''
+##Sorting Examples:
 students=[('john', 'A', 15), ('jane', 'B', 12), ('dave', 'B', 10)]
 #default ascending order
 y = sorted(students, key=lambda student: student[2])
@@ -15,3 +17,11 @@ print ("Ascending order by grade: ", sorted(students, key=lambda x: x.grade))
 from operator import itemgetter, attrgetter
 print ("Descending order by grade: ", sorted(students, key = itemgetter(1)))
 print ("Ascending order by name: ", sorted(students, key = attrgetter('name')))
+'''
+
+#sorting factors we need
+# 1. get all the timestamp+
+# 2. for each time point, select all stock's factor value
+# 3. sorting
+# 4. index them & insert into DB
+def factor_sort(name, descending=True):

@@ -6,7 +6,7 @@ import time
 # 启动Wind API
 w.start()
 
-# 获取所有的A股 IPO > 3个月的股票 目前共[3150]支，有[3014]支符合要求
+# 获取每个时间点所有的A股 IPO > 3个月的股票 目前共[3150]支，有[3014]支符合要求
 stocks = w.wset("SectorConstituent", u"sector=全部A股;field=wind_code")
 validStocks =[]
 print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "Total A stocks number: ", len(stocks.Data[0]))
