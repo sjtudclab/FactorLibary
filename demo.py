@@ -13,4 +13,7 @@ rows = session.execute("select * from factors_week where stock='600000.SH'and fa
 for row in rows:
     print(row.stock,row.factor,row.time,row.value)
 
+# close connection with cassandra
+cluster.shutdown()
+
 
