@@ -37,33 +37,34 @@ def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], t
     for factor in factors:
         SQL = SQL + "'"+ factor + "',"
     SQL = SQL[:-1]
-    SQL = SQL +") AND time = ?';"
+    SQL = SQL +") AND time = ?;"
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " PREPARE QUERY SQL: \n"+SQL)
     preparedStmt = session.prepare(SQL)
 
     # open CSV file & write first line: title
-    with open(fileName, 'w', encoding='utf-8', newline='') as csvFile:
-        fieldnames = ['ID'] + factors
-        f = csv.DictWriter(csvFile, fieldnames=fieldnames)
+    with open(fileName, 'w') as csvFile:
+        names = ['ID'] + factors
+        f = csv.DictWriter(csvFile, fieldnames=names,restval=0)
         f.writeheader()
-        dic = {}
+        
         colNum = len(factors)
         # retrieve data
         for day in dateList:
+            dic = {}
             for stock in ['600000.SH']:
                 rows = session.execute(preparedStmt, (stock,day))
-                #column-based DB, every #colNum CELL assemble as an ROW in CSV
-                cnt = 0
+                # pass when no data
+                empty = True
+                for x in rows:
+                    empty = False
+                    break
+                if empty:
+                    continue
+
+                dic['ID'] = stock+'_' + str(day)
                 for row in rows:
-                    if cnt % colNum == 0:
-                        if cnt > 0:
-                            f.writerow(dic) # write last row
-                            dic = {}
-                        dic['ID'] = row.stock+'_' + str(row.time)
-                    else:
-                        dic[row.factor] = str(row.value)
-                    cnt += 1
-                # write final row
+                    dic[row.factor] = str(row.value)
+                # write row
                 f.writerow(dic)
 
     # close connection with cassandra

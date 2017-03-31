@@ -1,7 +1,7 @@
 import csv
 with open('E:\\eggs.csv', 'w') as csvfile:
-    spamwriter = csv.writer(csvfile, delimiter='\t')
-    spamwriter.writerow(['Spam', '\t','Lovely Spam','Wonderful Spam'])
+    spamwriter = csv.writer(csvfile, delimiter=',')
+    spamwriter.writerow(['Spam','Lovely Spam','Wonderful Spam'])
 
 # with open('E:\\names.csv', 'w') as csvfile:
 #     fieldnames = ['first_name', 'last_name']
