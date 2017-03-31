@@ -41,17 +41,17 @@ def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], t
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " PREPARE QUERY SQL: \n"+SQL)
     preparedStmt = session.prepare(SQL)
 
-    # open CSV file & write first line: title
-    with open(fileName, 'w') as csvFile:
+    # open CSV file & write first line: title 
+    # NOTICE:  [wb] mode won't result in problem of blank line
+    with open(fileName, 'wb') as csvFile:
         names = ['ID'] + factors
-        f = csv.DictWriter(csvFile, fieldnames=names,restval=0)
-        f.writeheader()
+        f = csv.writer(csvFile, delimiter=',')
+        f.writerow(names)
         
-        colNum = len(factors)
         # retrieve data
         for day in dateList:
-            dic = {}
-            for stock in ['600000.SH']:
+            for stock in stocks:
+                line = []
                 rows = session.execute(preparedStmt, (stock,day))
                 # pass when no data
                 empty = True
@@ -61,11 +61,14 @@ def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], t
                 if empty:
                     continue
 
-                dic['ID'] = stock+'_' + str(day)
+                line.append(stock+'_' + str(day))
                 for row in rows:
-                    dic[row.factor] = str(row.value)
+                    if row.factor.find('rank') != -1:
+                        line.append(int(row.value))
+                    else:
+                        line.append(str(row.value))
                 # write row
-                f.writerow(dic)
+                f.writerow(line)
 
     # close connection with cassandra
     cluster.shutdown()
