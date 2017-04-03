@@ -21,8 +21,7 @@ def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], t
     stocks = []
     for row in rows:
         stocks.append(row[0])
-    SQL = "SELECT * FROM factors_month WHERE stock = ? AND factor IN ("
-    stockNum = len(stocks)
+    SQL = "SELECT * FROM "+table+" WHERE stock = ? AND factor IN ("
 
     # sorting factors since they're ordered in cassandra
     factors = sorted(factors)
@@ -34,6 +33,13 @@ def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], t
     dateList = []
     for row in rows:
         dateList.append(row.time)
+    
+    #total stock number
+    rows = session.execute("select count(*) from "+table+" where factor='close' and time = %s ALLOW FILTERING;", [str(dateList[0])])
+    for row in rows:
+        stockNum = row[0]
+        break;
+    print ("Stock number: ",stockNum)
     # prepare SQL
     for factor in factors:
         SQL = SQL + "'"+ factor + "',"
