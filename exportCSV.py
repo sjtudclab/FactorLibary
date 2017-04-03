@@ -22,6 +22,7 @@ def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], t
     for row in rows:
         stocks.append(row[0])
     SQL = "SELECT * FROM factors_month WHERE stock = ? AND factor IN ("
+    stockNum = len(stocks)
 
     # sorting factors since they're ordered in cassandra
     factors = sorted(factors)
@@ -43,9 +44,9 @@ def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], t
 
     # open CSV file & write first line: title 
     # NOTICE:  [wb] mode won't result in problem of blank line
-    with open(fileName, 'wb') as csvFile:
-        names = ['ID'] + factors
-        f = csv.writer(csvFile, delimiter=',')
+    with open(fileName, 'w') as csvFile:
+        names = ['id'] + factors
+        f = csv.writer(csvFile, delimiter=',',lineterminator='\n')
         f.writerow(names)
         
         # retrieve data
@@ -53,20 +54,18 @@ def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], t
             for stock in stocks:
                 line = []
                 rows = session.execute(preparedStmt, (stock,day))
+                
                 # pass when no data
                 empty = True
-                for x in rows:
-                    empty = False
-                    break
-                if empty:
-                    continue
-
                 line.append(stock+'_' + str(day))
                 for row in rows:
+                    empty = False
                     if row.factor.find('rank') != -1:
-                        line.append(int(row.value))
+                        line.append(int(row.value / stockNum * 1000)) #normalize rank value
                     else:
                         line.append(str(row.value))
+                if empty:
+                    continue
                 # write row
                 f.writerow(line)
 
