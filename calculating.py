@@ -3,6 +3,7 @@ from cassandra.cluster import Cluster
 from cassandra.util import Date
 from datetime import datetime
 import time
+import datetime
 ## calculating ROA growth
 # 1. get all the time series
 # 2. mark the last date of the endYear
@@ -64,6 +65,82 @@ def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
         cluster.shutdown()
         print (stock + " roa_growth calculation finished")
 
+## Yield = Close(month_start) / Close(mont_end)
+def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table = "factors_month", TYPE="D"):
+    # cassandra connection
+    cluster = Cluster(['192.168.1.111'])
+    session = cluster.connect('factors') #connect to the keyspace 'factors'
+    # get stocks list
+    rows = session.execute('''select stock from stock_info''')
+    stocks = []
+    for row in rows:
+        stocks.append(row[0])
+    # month begin & end time list
+    sql="select * from transaction_time where type= '"+TYPE+ "' and time > '"+ datetime.datetime.strftime(beginDate,"%Y-%m-%d") +"' and time < '" + datetime.datetime.strftime(endDate,"%Y-%m-%d")+"'"
+    print (sql)
+    rows = session.execute(sql)
+    dateList = [beginDate]
+    prevMonth = beginDate.month
+    currMonth = prevMonth
+    prevDay = beginDate
+    currDay = beginDate
+    cnt = 0
+    for row in rows:
+        cnt += 1
+        prevDay = currDay
+        prevMonth = currMonth
+        currDay = row.time.date()
+        currMonth = currDay.month
+        print('currDay: %s currentMonth: %s' % (currDay, currMonth))
+        # month change
+        if currMonth != prevMonth:
+            dateList.append(prevDay)
+            dateList.append(currDay)
+    # omit 1st one when it's the end of month
+    print(str(cnt)+" Size of dateList: ",len(dateList))
+    if dateList[1].month != beginDate.month:
+        dateList = dateList[1:]
+    # make it even
+    if len(dateList) % 2 != 0:
+        dateList = dateList[:-1]
+
+    sql = "select time, value from " + calc_table + " where stock = ? and factor = 'close' and time in ("
+    for day in dateList:
+        sql += "'"+str(day)+"',"
+    sql = sql[:-1] + ");"  # omit the extra comma
+    print(sql)
+    selectPreparedStmt = session.prepare(sql)
+    insertPreparedStmt = session.prepare("INSERT INTO "+store_table+" (stock, factor, time, value) VALUES (?,'Yield', ?, ?)")
+
+    #select all daily close price value for each stock
+    #for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
+    for stock in stocks:
+        rows = session.execute(selectPreparedStmt, (stock,))
+        ## calculating close Yield
+        # divid the first day's close price by the end day in the month
+
+        prev = 1.0     # previous Yield value
+        yield_map = {}
+        cnt = 0
+        for row in rows:
+            # end of month
+            if cnt % 2 > 0:
+                yield_map[row[0]] = float(row[1]) / float(prev)
+                #print ("prev: " + str(prev)+" K: ", row[0]," V: ", row[1]+" Yield: ",Yield)
+            # in case divided by 0
+            if row[1] == 0:
+                prev = 1.0
+            else:
+                prev = row[1]
+            cnt += 1
+        # insert to DB
+        for item in yield_map.items():
+            session.execute_async(insertPreparedStmt, (stock, item[0], item[1]))
+            #print(item[0].date().strftime("%Y-%m-%d"), item[1])
+        #cluster.shutdown()
+        print (stock + " Close Yield calculation finished")
+
 ################################
 #### Invoke Function  ##########
-calculate_ROA("2009-01-01", datetime.today().date(), "factors_month")
+#calculate_ROA("2009-01-01", datetime.today().date(), "factors_month")
+calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
