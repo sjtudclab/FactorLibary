@@ -9,7 +9,7 @@ import csv
 ## Select all valid stock with required factors identified by stock code & date, saved in CSV ##
 ################################################################################################
 def export(fileName, beginDate, endDate=datetime.today().date(), factors = [], table = "factors_month"):
-    if len(factors) == 0:
+    if len(factors) == 0 or beginDate > endDate:
         return
     # cassandra connection
     #cluster = Cluster(['192.168.1.111'])

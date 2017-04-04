@@ -100,3 +100,6 @@ print("---------- Inserstion Testing: ")
 rows = session.execute("select * from factors_month where stock='000852.SZ' and factor = 'mmt' and time > '2017-03-02'")
 for row in rows:
     print(row.stock,row.factor,row.time,row.value)
+
+# close connection with cassandra
+cluster.shutdown()
