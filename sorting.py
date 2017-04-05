@@ -22,6 +22,7 @@ print ("Ascending order by name: ", sorted(students, key = attrgetter('name')))
 from cassandra.cluster import Cluster
 from cassandra.util import Date
 from datetime import datetime
+import time
 
 #sorting factors we need
 # 1. get all the transaction date
@@ -50,6 +51,7 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
 
     # sort each factor for all stocks at each time step
     for factor in factors:
+        print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " Sorting [ %s ] started !" % (factor))
         for day in dateList:
             rows = session.execute(selectPreparedStmt, (factor, day))
             # 无数据跳过
@@ -65,10 +67,10 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
             for row in sortedRows:
                 cnt += 1
                 session.execute_async(insertPreparedStmt, (row.stock, factor + '_rank', row.time, cnt))
-                #print(row.stock, factor + '_rank', row.time, cnt)
+                print(row.stock, factor + '_rank', row.time, cnt)
             print("%s - [ %s ] - complete sorting [ %d stocks]" % (day.date().strftime("%Y-%m-%d"), factor, cnt))
     # close connection with cassandra
-    cluster.shutdown()
+    #cluster.shutdown()
 
 ##############################################
 ################ Invoke Function #############

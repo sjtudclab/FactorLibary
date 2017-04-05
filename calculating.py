@@ -79,31 +79,38 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     sql="select * from transaction_time where type= '"+TYPE+ "' and time > '"+ datetime.datetime.strftime(beginDate,"%Y-%m-%d") +"' and time < '" + datetime.datetime.strftime(endDate,"%Y-%m-%d")+"'"
     print (sql)
     rows = session.execute(sql)
-    dateList = [beginDate]
+    dateList = []
     prevMonth = beginDate.month
     currMonth = prevMonth
-    prevDay = beginDate
-    currDay = beginDate
+    prevDay = None
+    currDay = None
     cnt = 0
     for row in rows:
-        cnt += 1
         prevDay = currDay
         prevMonth = currMonth
+        # update
         currDay = row.time.date()
+        if cnt == 0:
+            dateList.append(currDay)
         currMonth = currDay.month
-        print('currDay: %s currentMonth: %s' % (currDay, currMonth))
+        #print('currDay: %s currentMonth: %s' % (currDay, currMonth))
         # month change
         if currMonth != prevMonth:
-            dateList.append(prevDay)
+            if prevDay is not None:
+                dateList.append(prevDay)
             dateList.append(currDay)
+        cnt += 1
     # omit 1st one when it's the end of month
     print(str(cnt)+" Size of dateList: ",len(dateList))
+
     if dateList[1].month != beginDate.month:
         dateList = dateList[1:]
+    print(dateList)
     # make it even
     if len(dateList) % 2 != 0:
         dateList = dateList[:-1]
 
+    print(dateList)
     sql = "select time, value from " + calc_table + " where stock = ? and factor = 'close' and time in ("
     for day in dateList:
         sql += "'"+str(day)+"',"
@@ -126,13 +133,13 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
             # end of month
             if cnt % 2 > 0:
                 yield_map[row[0]] = float(row[1]) / float(prev)
-                #print ("prev: " + str(prev)+" K: ", row[0]," V: ", row[1]+" Yield: ",Yield)
             # in case divided by 0
             if row[1] == 0:
                 prev = 1.0
             else:
                 prev = row[1]
-            cnt += 1
+            #print ("cnt " + str(cnt)+" K: ", row[0]," V: ", row[1])
+            cnt = cnt + 1
         # insert to DB
         for item in yield_map.items():
             session.execute_async(insertPreparedStmt, (stock, item[0], item[1]))
