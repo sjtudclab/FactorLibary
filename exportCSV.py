@@ -4,12 +4,13 @@ from cassandra.util import Date
 import time
 import datetime
 import csv
+import os
 
 ################################################################################################
 ## Select all valid stock with required factors identified by stock code & date, saved in CSV ##
 ################################################################################################
 def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factors = [], table = "factors_month"):
-    if len(factors) == 0 or beginDate > endDate:
+    if len(factors) == 0 or beginDate > endDate or len(fileName) == 0:
         return
     # cassandra connection
     #cluster = Cluster(['192.168.1.111'])
@@ -29,7 +30,7 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     #time list
     rows = session.execute('''
         select * from transaction_time 
-        where type='month' and time > %s and time < %s ALLOW FILTERING;''', [beginDate, endDate])
+        where type='month' and time >= %s and time <= %s ALLOW FILTERING;''', [beginDate, endDate])
     dateList = []
     for row in rows:
         dateList.append(row.time)

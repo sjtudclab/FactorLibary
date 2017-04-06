@@ -38,13 +38,13 @@ def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='fac
         wsd_data = w.wsd(stock, factor, startTime, endTime, option).Data
         for j in range(len(timeList)):
             #print (stock,factor,timeList[j],str(wsd_data[0][j]))
-            session.execute_async(preparedStmt, (stock, factor,timeList[j],str(wsd_data[0][j])))
+            session.execute_async(preparedStmt, (stock, factor,timeList[j],wsd_data[0][j]))
 
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '---------------- Persistion finished!\n')
 
     #result testing
     print("---------- Inserstion Testing: ")
-    rows = session.execute("select * from "+table+" where stock='600000.SH' and factor = '"+factor+"' and time > '2017-03-02'")
+    rows = session.execute("select * from "+table+" where stock='600000.SH' and factor = '"+factor+"' and time >= '2017-03-02'")
     for row in rows:
         print(row.stock,row.factor,row.time,row.value)
     # close connection with cassandra

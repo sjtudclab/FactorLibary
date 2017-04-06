@@ -42,7 +42,7 @@ def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
     #select all ROA value for each stock
     for stock in stocks:
         rows = session.execute('''select time, value from %s where stock = %s 
-        and factor = 'roa' and time > %s and time < %s ALLOW FILTERING''', [factor_table, stock, beginDate, endDate])
+        and factor = 'roa' and time >= %s and time <= %s ALLOW FILTERING''', [factor_table, stock, beginDate, endDate])
         ## calculating ROA Growth
         cnt = 0
         prev = 1.0               # previous ROA value
@@ -76,7 +76,7 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     for row in rows:
         stocks.append(row[0])
     # month begin & end time list
-    sql="select * from transaction_time where type= '"+TYPE+ "' and time > '"+ datetime.datetime.strftime(beginDate,"%Y-%m-%d") +"' and time < '" + datetime.datetime.strftime(endDate,"%Y-%m-%d")+"'"
+    sql="select * from transaction_time where type= '"+TYPE+ "' and time >= '"+ datetime.datetime.strftime(beginDate,"%Y-%m-%d") +"' and time <= '" + datetime.datetime.strftime(endDate,"%Y-%m-%d")+"'"
     print (sql)
     rows = session.execute(sql)
     dateList = []
