@@ -5,6 +5,7 @@ from cassandra.util import Date
 import time
 import datetime
 import math
+import numpy as np
 #####################################################################################
 ## Generate 'close' training file within required periods in TXT separated by '\t' ##
 #####################################################################################
@@ -26,10 +27,11 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
         select * from transaction_time 
         where type= %s and time >= %s and time <= %s ALLOW FILTERING;''', [TYPE,startTime, endTime])
     dateList = []
-    SQL = "SELECT value FROM "+table+" WHERE stock = ? AND factor = 'close' and time >= '" + datetime.datetime.strftime( startTime,"%Y-%m-%d") +"' and time < '" + datetime.datetime.strftime(endTime,"%Y-%m-%d")+"'"
+    SQL = "SELECT value FROM "+table+" WHERE stock = ? AND factor = 'close' and time >= '" + datetime.datetime.strftime( startTime,"%Y-%m-%d") +"' and time <= '" + datetime.datetime.strftime(endTime,"%Y-%m-%d")+"'"
     for row in rows:
-        dateList.append(row.time)
-
+        #dateList.append(row.time)
+        dateList.append(datetime.datetime.strptime(str(row.time), "%Y-%m-%d").strftime('%Y%m%d'))
+    
     # 拉取数据,一次拉一只股票
     dataList = []
     preparedStmt = session.prepare(SQL)
@@ -46,10 +48,17 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Writing to ',fileName,' ...')
     # 数据写入文件中
     f = open(fileName, "w", encoding='utf-8', newline='\n')
-    f.write(str(colNum))
-    f.write('\t')
-    f.write(str(rowNum))
-    f.write('\n')
+    # f.write(str(colNum))
+    # f.write('\t')
+    # f.write(str(rowNum))
+    # f.write('\n')
+
+    stock_index = np.array(stocks)
+    stock_order = np.argsort(stock_index)
+
+    stocks = [stocks[j] for j in stock_order]
+    dataList = [dataList[k][:] for k in stock_order]
+
     f.write('close')
     for stock in stocks:
         f.write('\t'+stock)

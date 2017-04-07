@@ -28,7 +28,7 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
         select * from transaction_time 
         where type= %s and time > %s and time < %s ALLOW FILTERING;''', [TYPE,startTime, endTime])
     dateList = []
-    SQL = "SELECT value FROM "+table+" WHERE stock = ? AND factor = 'close' and time > '" + datetime.datetime.strftime( startTime,"%Y-%m-%d") +"' and time < '" + datetime.datetime.strftime(endTime,"%Y-%m-%d")+"'"
+    SQL = "SELECT value FROM "+table+" WHERE stock = ? AND factor = 'close' and time >= '" + datetime.datetime.strftime( startTime,"%Y-%m-%d") +"' and time <= '" + datetime.datetime.strftime(endTime,"%Y-%m-%d")+"'"
     for row in rows:
         #dateList.append(row.time)
         dateList.append(datetime.datetime.strptime(str(row.time), "%Y-%m-%d").strftime('%Y%m%d'))
@@ -46,7 +46,7 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
     colNum = len(stocks)
     rowNum = len(dateList)
     # 数据写入文件中
-    f = open("D:\\close4.txt", "wb")
+    f = open(fileName, "wb")
 
     #f.write(str(colNum))
     #f.write('\t')
@@ -68,7 +68,7 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
         for s in range(colNum):
             try:
                 data = dataList[s][i]
-                if math.isnan(float(data)):
+                if math.isnan(data):
                     data = 0  # default value
                 f.write('\t' + str(data))
             except IndexError:
@@ -83,4 +83,4 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
 
 ##############################################
 ################# EXAMPLE USAGE ##############
-exportClose("D:\\close4.txt",datetime.date(2017,2,1))
+exportClose("D:\\close4.txt",datetime.date(2017,2,1),datetime.date(2017,4,6))
