@@ -1,3 +1,4 @@
+# pylint: disable=I0011,C0103,C0326,C0301, W0401,W0614
 from WindPy import *
 from datetime import datetime
 import time
@@ -7,7 +8,7 @@ from cassandra.cluster import Cluster
 ## 可交易日/周/月
 ## 所有股票名/IPO日期/可交易状态(待修正，每次查询A股都要判断是否处于可交易状态，因此严格来说每次数据获取和导出时都要加判定)
 
-def updateAStocks():
+def updateAStocks(extraIndex = []):
     # 启动Wind API
     w.start()
     #取全部 A 股股票代码、名称信息(不写field，默认为wind_code & sec_name & date)
@@ -15,8 +16,11 @@ def updateAStocks():
     data = stocks.Data
     size = len(data[0]) 
 
-    ##3147 stocks until now
-    # data[0] is wind_code list, data[1] is sec_name list
+    indexInfo = []
+    for index in extraIndex:
+        d = w.wsd(index, "windcode,sec_name", "2017-04-06", "2017-04-06", "Period=Y").Data
+        indexInfo.append((d[0][0], d[1][0]))
+    print ("index info: "+indexInfo)
     print("stock number: ", size)
 
     cluster = Cluster(['192.168.1.111'])
@@ -25,7 +29,9 @@ def updateAStocks():
     for i in range(size):
         session.execute(preparedStmt,(data[0][i],data[1][i]))
     print ("Updating stocks of A share complete!")
-
+    for i in range(len(indexInfo)):
+        session.execute(preparedStmt,(indexInfo[i][0],indexInfo[i][1]))
+    print ("Updating Stock Index complete!")
 
 #取沪深 300 指数中股票代码和权重
 #stocks = w.wset("IndexConstituent","date=20130608;windcode=000300.SH;field=wind_code,i_weight")
@@ -72,4 +78,6 @@ def updateTransactionTime(startTime, endTime = datetime.today(),TYPE='D'):
 ## Updating Available A share Stock & transaction_time ##
 #########################################################
 # transaction day
-updateTransactionTime('2009-01-01')
+#updateTransactionTime('2009-01-01')
+# update stocks
+updateAStocks(extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])

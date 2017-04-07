@@ -4,7 +4,7 @@ from datetime import datetime
 from WindPy import *
 import time
 
-def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='factors_day', option = "Period=D;Fill=Previous;PriceAdj=B"):
+def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='factors_day', extraIndex=[],option = "Period=D;Fill=Previous;PriceAdj=B"):
     # 启动Wind API
     w.start()
 
@@ -34,6 +34,8 @@ def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='fac
     sql = "INSERT INTO "+table
     preparedStmt = session.prepare(sql + "(stock, factor, time, value) VALUES (?,?,?,?)")
 
+    # go through all A share stock + Stock Index
+    stocks += extraIndex
     for stock in stocks:
         wsd_data = w.wsd(stock, factor, startTime, endTime, option).Data
         for j in range(len(timeList)):
@@ -50,4 +52,6 @@ def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='fac
     # close connection with cassandra
     cluster.shutdown()
 
-retrieveSingleFactor('close','2009-01-01')
+## add Stock Market Index besides A share stock
+indexes=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH']
+retrieveSingleFactor('close','2009-01-01',extraIndex=indexes)
