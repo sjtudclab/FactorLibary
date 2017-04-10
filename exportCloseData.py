@@ -31,7 +31,7 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
     for row in rows:
         #dateList.append(row.time)
         dateList.append(datetime.datetime.strptime(str(row.time), "%Y-%m-%d").strftime('%Y%m%d'))
-    
+
     # 拉取数据,一次拉一只股票
     dataList = []
     preparedStmt = session.prepare(SQL)

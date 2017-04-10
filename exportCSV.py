@@ -76,7 +76,6 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
 
                         if row.factor.find('Yield') != -1:
                             rank = int(row.value / totalStockNum * 1000)
-                            line.append(rank)
                             ##################################################
                             ####### CODE Area for Yield Rank Classification ##
                             ##################################################
@@ -88,6 +87,7 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                                 line.append(0)
                             else:
                                 line.append('') #no class, fill in empty char to keep CSV well-formed
+                            line.append(rank)
                         else:
                             line.append(rank)
                     else:
@@ -96,11 +96,11 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                     continue
                 # write row
                 f.writerow(line)
-
+            print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " Complete Writing at "+str(day))
     # close connection with cassandra
     cluster.shutdown()
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Writing to ',fileName,' complete!')
 
 ##############################################
 ################# USAGE EXAMPLE ##############
-export('E:\\train.csv', datetime.date(2017,1,1),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
+export('E:\\train.csv', datetime.date(2017,2,1),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
