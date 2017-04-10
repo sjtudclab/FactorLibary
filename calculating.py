@@ -39,10 +39,10 @@ def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
         stocks.append(row[0])
 
     preparedStmt = session.prepare("INSERT INTO "+factor_table+" (stock, factor, time, value) VALUES (?,'roa_growth', ?, ?)")
+    selectPreparedStmt = session.prepare("select time, value from "+factor_table+" where stock = ? and factor = 'roa' and time >= ? and time <= ? ALLOW FILTERING")
     #select all ROA value for each stock
     for stock in stocks:
-        rows = session.execute('''select time, value from %s where stock = %s 
-        and factor = 'roa' and time >= %s and time <= %s ALLOW FILTERING''', [factor_table, stock, beginDate, endDate])
+        rows = session.execute(selectPreparedStmt, (stock, str(beginDate), str(endDate)))
         ## calculating ROA Growth
         cnt = 0
         prev = 1.0               # previous ROA value
@@ -149,5 +149,5 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
 
 ################################
 #### Invoke Function  ##########
-#calculate_ROA("2009-01-01", datetime.today().date(), "factors_month")
-calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
+calculate_ROA(datetime.date(2017,3,1), datetime.datetime.today().date(), "factors_month")
+calculate_Yield(datetime.date(2017,3,1), datetime.datetime.today().date())

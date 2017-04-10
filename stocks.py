@@ -79,5 +79,6 @@ def updateTransactionTime(startTime, endTime = datetime.today(),TYPE='D'):
 #########################################################
 # transaction day
 #updateTransactionTime('2009-01-01')
+updateTransactionTime('2009-01-01', TYPE='M')
 # update stocks
-updateAStocks(extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])
+#updateAStocks(extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])

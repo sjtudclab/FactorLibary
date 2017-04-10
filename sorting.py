@@ -38,7 +38,7 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
     # get transaction date monthly
     rows = session.execute('''
         select * from transaction_time 
-        where type='month' and time > %s and time < %s ALLOW FILTERING;''', [beginDate, endDate])
+        where type='M' and time > %s and time < %s ALLOW FILTERING;''', [beginDate, endDate])
     dateList = []
     for row in rows:
         dateList.append(row.time)
@@ -75,6 +75,7 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
 ##############################################
 ################ Invoke Function #############
 #sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth','mfd_buyamt_d1', 'mfd_sellamt_d1', 'roa', 'pe', 'pb','mfd_buyamt_d2', 'mfd_sellamt_d2','mfd_buyamt_d4', 'mfd_sellamt_d4'])
-#sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth'])
-sort_factors("2009-01-01", factors=['Yield'])
+#sort_factors("2009-01-01", factors=['Yield'])
+# sort_factors("2017-03-01", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
+sort_factors("2017-03-01", factors=['mkt_freeshares','mmt','roa_growth'])
 

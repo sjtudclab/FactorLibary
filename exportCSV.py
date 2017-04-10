@@ -30,7 +30,7 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     #time list
     rows = session.execute('''
         select * from transaction_time 
-        where type='month' and time >= %s and time <= %s ALLOW FILTERING;''', [beginDate, endDate])
+        where type='M' and time >= %s and time <= %s ALLOW FILTERING;''', [beginDate, endDate])
     dateList = []
     for row in rows:
         dateList.append(row.time)
@@ -90,17 +90,20 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                             line.append(rank)
                         else:
                             line.append(rank)
+                    elif row.factor.find('Yield') != -1:
+                        line.append('') # empty for Yield Binary Class
+                        line.append(str(row.value))
                     else:
                         line.append(str(row.value))
                 if empty:
                     continue
                 # write row
                 f.writerow(line)
-            print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " Complete Writing at "+str(day))
+            print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "  Writing at "+str(day))
     # close connection with cassandra
     cluster.shutdown()
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'Writing to ',fileName,' complete!')
 
 ##############################################
 ################# USAGE EXAMPLE ##############
-export('E:\\train.csv', datetime.date(2017,2,1),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
+export('E:\\train.csv', datetime.date(2016,1,1),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield'])
