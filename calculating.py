@@ -33,7 +33,7 @@ def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
     # print (sql)
 
     # get stocks list
-    rows = session.execute('''select stock from stock_info''')
+    rows = session.execute('''SELECT stock FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
     stocks = []
     for row in rows:
         stocks.append(row[0])
@@ -62,7 +62,7 @@ def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
         for item in roa_growth.items():
             session.execute_async(preparedStmt, (stock, item[0], item[1]))
             #print(item[0].date().strftime("%Y-%m-%d"), item[1])
-        cluster.shutdown()
+
         print (stock + " roa_growth calculation finished")
 
 ## Yield = Close(month_start) / Close(mont_end)
@@ -71,7 +71,7 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     cluster = Cluster(['192.168.1.111'])
     session = cluster.connect('factors') #connect to the keyspace 'factors'
     # get stocks list
-    rows = session.execute('''select stock from stock_info''')
+    rows = session.execute('''SELECT stock FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
     stocks = []
     for row in rows:
         stocks.append(row[0])
@@ -85,6 +85,7 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     prevDay = None
     currDay = None
     cnt = 0
+    # 筛选出月初和月末的日期
     for row in rows:
         prevDay = currDay
         prevMonth = currMonth
@@ -130,24 +131,60 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
         yield_map = {}
         cnt = 0
         for row in rows:
-            # end of month
+            # end of month, store the quotient
             if cnt % 2 > 0:
-                yield_map[row[0]] = float(row[1]) / float(prev)
+                yield_map[row.time] = float(row.value) / float(prev)
             # in case divided by 0
-            if row[1] == 0:
+            elif row.value == 0:
                 prev = 1.0
             else:
-                prev = row[1]
+                prev = row.value
             #print ("cnt " + str(cnt)+" K: ", row[0]," V: ", row[1])
             cnt = cnt + 1
         # insert to DB
         for item in yield_map.items():
             session.execute_async(insertPreparedStmt, (stock, item[0], item[1]))
-            #print(item[0].date().strftime("%Y-%m-%d"), item[1])
-        #cluster.shutdown()
+            # print(item[0].date().strftime("%Y-%m-%d"), item[1])
         print (stock + " Close Yield calculation finished")
+    cluster.shutdown()
+
+def calculate_mmt(beginDate, endDate, factor_table = "factors_month"):
+    cluster = Cluster(['192.168.1.111'])
+    session = cluster.connect('factors')
+    
+    rows = session.execute('''SELECT stock FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
+    stocks = []
+    for row in rows:
+        stocks.append(row[0])
+
+    preparedStmt = session.prepare("INSERT INTO "+factor_table+" (stock, factor, time, value) VALUES (?,'mmt', ?, ?)")
+    selectPreparedStmt = session.prepare("select time, value from "+factor_table+" where stock = ? and factor = 'close' and time >= ? and time <= ? ALLOW FILTERING")
+    #select all close value for each stock every month
+    for stock in stocks:
+        rows = session.execute(selectPreparedStmt, (stock, str(beginDate), str(endDate)))
+        ## calculating mmt
+        cnt = 0
+        prev = 1.0               # previous close value
+        growth = float('nan')    # Close_curr / Close_prev
+        mmt_dic = {}
+        for row in rows:
+            if cnt > 0 and row[1] != prev:
+                growth = row[1] / prev
+            # in case divided by 0
+            if row[1] == 0:
+                prev = 1.0
+            else:
+                prev = row[1]
+            mmt_dic[row[0]] = growth
+            cnt += 1
+        # insert to DB
+        for item in mmt_dic.items():
+            session.execute_async(preparedStmt, (stock, item[0], item[1]))
+            #print(item[0].date().strftime("%Y-%m-%d"), item[1])
+
+        print (stock + " mmt calculation finished")
 
 ################################
 #### Invoke Function  ##########
-calculate_ROA(datetime.date(2017,3,1), datetime.datetime.today().date(), "factors_month")
-calculate_Yield(datetime.date(2017,3,1), datetime.datetime.today().date())
+#calculate_ROA(datetime.date(2017,3,1), datetime.datetime.today().date(), "factors_month")
+calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())

@@ -25,8 +25,9 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     SQL = "SELECT * FROM "+table+" WHERE stock = ? AND factor IN ("
 
     # sorting factors since they're ordered in cassandra
-    factors = sorted(factors)
-    print("Sorted factors: ", factors)
+    # factors = sorted(factors)
+    # print("Sorted factors: ", factors)
+
     #time list
     rows = session.execute('''
         select * from transaction_time 
@@ -36,15 +37,17 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
         dateList.append(row.time)
 
     #total stock number
-    rows = session.execute("select count(*) from "+table+" where factor='close' and time = %s ALLOW FILTERING;", [str(dateList[0])])
+    # rows = session.execute("select count(*) from "+table+" where factor='close' and time = %s ALLOW FILTERING;", [str(dateList[0])])
+    # for row in rows:
+    #     validStockNum = row[0]
+    #     break
+    rows = session.execute('''SELECT count(*) FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
     for row in rows:
+        # totalStockNum = row[0]
         validStockNum = row[0]
         break
-    rows = session.execute('''select count(*) from stock_info''')
-    for row in rows:
-        totalStockNum = row[0]
-        break
-    print ("Total Stock: ", totalStockNum, " Valid Stock: ", validStockNum)
+    # print ("Total Stock: ", totalStockNum, " Valid Stock: ", validStockNum)
+    print ("        Valid Stock SIZE: ", validStockNum)
     # prepare SQL
     for factor in factors:
         SQL = SQL + "'"+ factor + "',"
@@ -53,10 +56,12 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " PREPARE QUERY SQL: \n"+SQL)
     preparedStmt = session.prepare(SQL)
 
-    # open CSV file & write first line: title 
+    # open CSV file & write first line: title
     # NOTICE:  [wb] mode won't result in problem of blank line
     with open(fileName, 'w') as csvFile:
-        names = ['id'] + ['Yield_Rank_Class'] + factors  # column names
+        factors = factors + ['Yield_Rank_Class']
+        names = ['id']  + factors # column names
+        print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " ---- Starting to export ------ \r\n")
         f = csv.writer(csvFile, delimiter=',',lineterminator='\n')
         f.writerow(names)
 
@@ -64,6 +69,7 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
         for day in dateList:
             for stock in stocks:
                 line = []
+                dic = {}    # paired K/V for ordering
                 rows = session.execute(preparedStmt, (stock,day))
 
                 # pass when no data
@@ -75,30 +81,47 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                         rank = int(row.value / validStockNum * 1000) # normalize rank value
 
                         if row.factor.find('Yield') != -1:
-                            rank = int(row.value / totalStockNum * 1000)
+                            # rank = int(row.value / totalStockNum * 1000)
                             ##################################################
                             ####### CODE Area for Yield Rank Classification ##
                             ##################################################
                             # class 1: [1, 26]
                             if rank > 1 * 10 and rank < 26 * 10:
-                                line.append(1)
+                                #line.append(1)
+                                dic['Yield_Rank_Class'] = '1'
                             # class 0: [74, 99]
                             elif rank > 74 * 10 and rank < 99 * 10:
-                                line.append(0)
+                                #line.append(0)
+                                dic['Yield_Rank_Class'] = '0'
                             else:
-                                line.append('') #no class, fill in empty char to keep CSV well-formed
-                            line.append(rank)
-                        else:
-                            line.append(rank)
-                    elif row.factor.find('Yield') != -1:
-                        line.append('') # empty for Yield Binary Class
-                        line.append(str(row.value))
+                                #line.append('') #no class, fill in empty char to keep CSV well-formed
+                                dic['Yield_Rank_Class'] = ''
+                            # line.append(rank)
+
+                        dic[row.factor] = rank
+
+                    # elif row.factor.find('Yield') != -1:
+                    #     # line.append('') # empty for Yield Binary Class
+                    #     # line.append(str(row.value))
+                    #     dic['Yield_Rank_Class'] = ''
+                    #     dic['Yield'] = str(row.value)
                     else:
-                        line.append(str(row.value))
+                        # line.append(str(row.value))
+                        dic[row.factor] = row.value
                 if empty:
                     continue
                 # write row
-                f.writerow(line)
+                # print (dic)
+                empty = False
+                for factor in factors:
+                    try:
+                        line.append(dic[factor])
+                    except KeyError:
+                        # print(" --- Empty Omitted %s 's factor: %s " % (row.stock, factor))
+                        empty = True
+                        break
+                if empty == False:
+                    f.writerow(line)
             print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "  Writing at "+str(day))
     # close connection with cassandra
     cluster.shutdown()
@@ -106,4 +129,4 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
 
 ##############################################
 ################# USAGE EXAMPLE ##############
-export('E:\\train.csv', datetime.date(2016,1,1),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield'])
+export('E:\\train.csv', datetime.date(2016,1,1),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])

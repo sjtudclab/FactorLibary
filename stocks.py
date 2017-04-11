@@ -1,6 +1,6 @@
 # pylint: disable=I0011,C0103,C0326,C0301, W0401,W0614
 from WindPy import *
-from datetime import datetime
+import datetime
 import time
 from cassandra.cluster import Cluster
 
@@ -14,25 +14,53 @@ def updateAStocks(extraIndex = []):
     #取全部 A 股股票代码、名称信息(不写field，默认为wind_code & sec_name & date)
     stocks = w.wset("SectorConstituent",u"sector=全部A股;field=wind_code,sec_name")
     data = stocks.Data
-    size = len(data[0]) 
+    # size = len(data[0]) 
 
-    indexInfo = []
-    for index in extraIndex:
-        d = w.wsd(index, "windcode,sec_name", "2017-04-06", "2017-04-06", "Period=Y").Data
-        indexInfo.append((d[0][0], d[1][0]))
-    print ("index info: "+indexInfo)
-    print("stock number: ", size)
+    # indexInfo = []
+    # for index in extraIndex:
+    #     d = w.wsd(index, "windcode,sec_name", "2017-04-06", "2017-04-06", "Period=Y").Data
+    #     indexInfo.append((d[0][0], d[1][0]))
+    # print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) ," TOTAL A STOCK'S SIZE: ", size)
+    # print ("index info: "+indexInfo)
 
     cluster = Cluster(['192.168.1.111'])
     session = cluster.connect('factors') #connect to the keyspace 'factors'
-    preparedStmt = session.prepare('''INSERT INTO stock_info(stock, sec_name) VALUES (?,?)''')
-    for i in range(size):
-        session.execute(preparedStmt,(data[0][i],data[1][i]))
-    print ("Updating stocks of A share complete!")
-    for i in range(len(indexInfo)):
-        session.execute(preparedStmt,(indexInfo[i][0],indexInfo[i][1]))
-    print ("Updating Stock Index complete!")
+    # preparedStmt = session.prepare('''INSERT INTO stock_info(stock, sec_name) VALUES (?,?)''')
+    # for i in range(size):
+    #     session.execute(preparedStmt,(data[0][i],data[1][i]))
+    # print ("Updating stocks of A share's name complete!")
+    # for i in range(len(indexInfo)):
+    #     session.execute(preparedStmt,(indexInfo[i][0],indexInfo[i][1]))
+    # print ("Updating Stock Index's name complete!")
 
+    # 更新IPO_DATE & TRADE_STATUS
+    # stock status update statement
+    updateStmt = session.prepare('''INSERT INTO stock_info(stock, ipo_date, trade_status) VALUES (?,?,?)''')
+    validStocks =[]
+    # 判断数据有效性
+    #for stock in ["000852.SZ","603788.SH","603987.SH","603988.SH","603989.SH","603990.SH","603991.SH","603993.SH"]:
+    # for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
+    for stock in data[0]:
+        ipo_status = w.wsd(stock, "ipo_date, trade_status", datetime.datetime.today())
+        try:
+            days = (datetime.datetime.today() - ipo_status.Data[0][0]).days
+            if  days > 90 and ipo_status.Data[1][0] == "交易":
+                validStocks.append(stock)
+                session.execute_async(updateStmt, (stock, ipo_status.Data[0][0], '1')) # status 1 : "交易"
+            else:
+                # set status 0
+                session.execute_async(updateStmt, (stock, ipo_status.Data[0][0], '0')) # status 0 : "不可交易"
+                print (" Set invalid data: ", stock, str(ipo_status.Data[0][0]))
+
+        except TypeError:
+            print (" -- Log TypeError at Stock: ", stock, " :\t", str(ipo_status.Data[0][0]))
+    validN = len(validStocks)
+    print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " valid stocks' number: ", validN)
+
+    # Set index's status as '2', different from others
+    for index in extraIndex:
+        session.execute('''INSERT INTO stock_info(stock, trade_status) VALUES (%s,%s)''', (index, '2')) # status 2 : "指数"
+    print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " Updating Indexes Complete! ")
 #取沪深 300 指数中股票代码和权重
 #stocks = w.wset("IndexConstituent","date=20130608;windcode=000300.SH;field=wind_code,i_weight")
 
@@ -55,7 +83,7 @@ def updateAStocks(extraIndex = []):
 # print (stocks)
 
 ## insert transaction day
-def updateTransactionTime(startTime, endTime = datetime.today(),TYPE='D'):
+def updateTransactionTime(startTime, endTime = datetime.datetime.today(),TYPE='D'):
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),"Updating Transaction Time in TYPE: ", TYPE)
     # 启动Wind API
     w.start()
@@ -79,6 +107,6 @@ def updateTransactionTime(startTime, endTime = datetime.today(),TYPE='D'):
 #########################################################
 # transaction day
 #updateTransactionTime('2009-01-01')
-updateTransactionTime('2009-01-01', TYPE='M')
+# updateTransactionTime('2009-01-01', TYPE='M')
 # update stocks
-#updateAStocks(extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])
+updateAStocks(extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])

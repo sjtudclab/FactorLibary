@@ -1,9 +1,14 @@
 # pylint: disable=I0011,C0103,C0326,C0301, W0401,W0614
+from cassandra.cluster import Cluster
 from WindPy import *
 import time
 import datetime
 
 def monthRetrieve(startTime, endTime = datetime.datetime.today()):
+    # cassandra connect
+    cluster = Cluster(['192.168.1.111'])
+    session = cluster.connect('factors') # factors: factors_month
+    
     # 启动Wind API
     w.start()
 
@@ -22,6 +27,8 @@ def monthRetrieve(startTime, endTime = datetime.datetime.today()):
     validStocks =[]
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "Total A stocks number: ", len(stocks.Data[0]))
 
+    # stock status update statement
+    updateStmt = session.prepare('''INSERT INTO stock_info(stock, ipo_date, trade_status) VALUES (?,?,?)''')
     # 判断数据有效性
     #for stock in ["000852.SZ","603788.SH","603987.SH","603988.SH","603989.SH","603990.SH","603991.SH","603993.SH"]:
     #for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
@@ -32,6 +39,12 @@ def monthRetrieve(startTime, endTime = datetime.datetime.today()):
             days = (datetime.datetime.today() - ipo_status.Data[0][0]).days
             if  days > 90 and ipo_status.Data[1][0] == "交易":
                 validStocks.append(stock)
+                session.execute(updateStmt, (stock, ipo_status.Data[0][0], '1'))
+            else:
+                # set status 0
+                session.execute(updateStmt, (stock, ipo_status.Data[0][0], '0'))
+                print (" Set invalid data: ", stock, str(ipo_status.Data[0][0]))
+
         except TypeError:
             print (" -- Log TypeError at Stock: ", stock, " :\t", str(ipo_status.Data[0][0]))
     validN = len(validStocks)
@@ -47,15 +60,11 @@ def monthRetrieve(startTime, endTime = datetime.datetime.today()):
     fields1 = ['close', 'mkt_freeshares', 'mfd_buyamt_d', 'mfd_sellamt_d', 'roa', 'pe', 'pb']
     option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B"
 
-    from cassandra.cluster import Cluster
-    cluster = Cluster(['192.168.1.111'])
-    session = cluster.connect('factors') # factors: factors_month
     preparedStmt = session.prepare('''INSERT INTO factors_month(stock, factor, time, value) VALUES (?,?,?,?)''')
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " ------ Starting to insert to DB")
 
     ## 遍历所有股票
-    # 1200 以后的股票需要重新导入，其余都是正常的
-    for stock in validStocks):
+    for stock in validStocks:
         wsd_data = w.wsd(stock, fields1, startTime, endTime, option1).Data
         fields2 = ['mfd_buyamt_d', 'mfd_sellamt_d']
         option2 = "unit=1;traderType=2;Period=M;Fill=Previous;PriceAdj=B"
