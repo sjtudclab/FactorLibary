@@ -43,9 +43,9 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
     for row in rows:
         dateList.append(row.time)
     print(dateList)
-    # prepare
+    # prepare, Only Sorting Non-NaN Data
     selectPreparedStmt = session.prepare(
-        "select * from " + table + " where factor=? and time=? ALLOW FILTERING")
+        "select * from " + table + " where factor=? and time=? and value < NaN ALLOW FILTERING")
     insertPreparedStmt = session.prepare(
         "INSERT INTO " + table + "(stock, factor, time, value) VALUES (?,?,?,?)")
 
@@ -76,6 +76,6 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
 ################ Invoke Function #############
 #sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth','mfd_buyamt_d1', 'mfd_sellamt_d1', 'roa', 'pe', 'pb','mfd_buyamt_d2', 'mfd_sellamt_d2','mfd_buyamt_d4', 'mfd_sellamt_d4'])
 #sort_factors("2009-01-01", factors=['Yield'])
-# sort_factors("2017-03-01", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
-sort_factors("2009-01-01", factors=['Yield'])
+# sort_factors("2009-01-01", factors=['Yield'])
+sort_factors("2017-03-01", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 

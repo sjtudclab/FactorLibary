@@ -8,7 +8,7 @@ def monthRetrieve(startTime, endTime = datetime.datetime.today()):
     # cassandra connect
     cluster = Cluster(['192.168.1.111'])
     session = cluster.connect('factors') # factors: factors_month
-    
+
     # 启动Wind API
     w.start()
 
