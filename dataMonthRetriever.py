@@ -24,7 +24,7 @@ def monthRetrieve(startTime, endTime = datetime.datetime.today()):
     # 获取某个月份所有可交易的A股 （如此的话每次一支股票只拿一个数据，分多个时间点去拿，请求数目过多，改成批量拉取一支股票
     # 所有因子
     stocks = w.wset("SectorConstituent", u"sector=全部A股;field=wind_code")
-    validStocks =[]
+    validStocks ={}
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "Total A stocks number: ", len(stocks.Data[0]))
 
     # stock status update statement
@@ -38,7 +38,7 @@ def monthRetrieve(startTime, endTime = datetime.datetime.today()):
         try:
             days = (datetime.datetime.today() - ipo_status.Data[0][0]).days
             if  days > 90 and ipo_status.Data[1][0] == "交易":
-                validStocks.append(stock)
+                validStocks[stock] = ipo_status.Data[1][0]
                 session.execute(updateStmt, (stock, ipo_status.Data[0][0], '1'))
             else:
                 # set status 0
@@ -64,22 +64,27 @@ def monthRetrieve(startTime, endTime = datetime.datetime.today()):
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " ------ Starting to insert to DB")
 
     ## 遍历所有股票
-    for stock in validStocks:
-        wsd_data = w.wsd(stock, fields1, startTime, endTime, option1).Data
+    for stock,ipo_date in validStocks:
+        # 只取 IPO 之后的数据
+        start = startTime if startTime > ipo_date else ipo_date
+
+        # 同一个变量，参数不一样，需要分成几次拉取
+        wsd_data = w.wsd(stock, fields1, start, endTime, option1).Data
         fields2 = ['mfd_buyamt_d', 'mfd_sellamt_d']
         option2 = "unit=1;traderType=2;Period=M;Fill=Previous;PriceAdj=B"
-        wsd_data = wsd_data + w.wsd(stock, fields2, startTime, endTime, option2).Data
+        wsd_data = wsd_data + w.wsd(stock, fields2, start, endTime, option2).Data
         option3 = "unit=1;traderType=4;Period=M;Fill=Previous;PriceAdj=B"
-        wsd_data = wsd_data + w.wsd(stock, fields2, startTime, endTime, option3).Data
-        ## 计算动量mmt = close_1 / close_2; 没有数据增长率为0
-        mmt = []
-        mmt.append(1)
-        for i in range(1, len(wsd_data[0])):
-            if wsd_data[0][i] is not None and wsd_data[0][i] != 0:
-                mmt.append(wsd_data[0][i] / wsd_data[0][i-1])
-            else:
-                mmt.append(float('nan'))
-        wsd_data.append(mmt)
+        wsd_data = wsd_data + w.wsd(stock, fields2, start, endTime, option3).Data
+        
+        ##【修改：计算动量模块单独移出来，为可扩展性】mmt = close_1 / close_2; 没有数据增长率为0
+        # mmt = []
+        # mmt.append(1)
+        # for i in range(1, len(wsd_data[0])):
+        #     if wsd_data[0][i] is not None and wsd_data[0][i] != 0:
+        #         mmt.append(wsd_data[0][i] / wsd_data[0][i-1])
+        #     else:
+        #         mmt.append(float('nan'))
+        # wsd_data.append(mmt)
         dataList.append(wsd_data)
         cnt += 1
         #阶段性异步导出 dump data asynchronously, 300 stocks / round

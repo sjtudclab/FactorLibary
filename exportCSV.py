@@ -22,7 +22,6 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     stocks = []
     for row in rows:
         stocks.append(row[0])
-    SQL = "SELECT * FROM "+table+" WHERE stock = ? AND factor IN ("
 
     # sorting factors since they're ordered in cassandra
     # factors = sorted(factors)
@@ -36,19 +35,9 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     for row in rows:
         dateList.append(row.time)
 
-    #total stock number
-    # rows = session.execute("select count(*) from "+table+" where factor='close' and time = %s ALLOW FILTERING;", [str(dateList[0])])
-    # for row in rows:
-    #     validStockNum = row[0]
-    #     break
-    rows = session.execute('''SELECT count(*) FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
-    for row in rows:
-        # totalStockNum = row[0]
-        validStockNum = row[0]
-        break
-    # print ("Total Stock: ", totalStockNum, " Valid Stock: ", validStockNum)
-    print ("        Valid Stock SIZE: ", validStockNum)
+    countStmt = session.prepare(''' SELECT count(*) from factors_month WHERE factor = 'close' and time = ? ALLOW FILTERING ; ''')
     # prepare SQL
+    SQL = "SELECT * FROM "+table+" WHERE stock = ? AND factor IN ("
     for factor in factors:
         SQL = SQL + "'"+ factor + "',"
     SQL = SQL[:-1]
@@ -67,6 +56,11 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
 
         # retrieve data
         for day in dateList:
+            # real stock number on every trading day
+            rows = session.execute(countStmt,(day,))
+            for row in rows:
+                validStockNum = row[0]
+                break
             for stock in stocks:
                 line = []
                 dic = {}    # paired K/V for ordering
@@ -129,4 +123,4 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
 
 ##############################################
 ################# USAGE EXAMPLE ##############
-export('E:\\train.csv', datetime.date(2016,1,1),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
+export('E:\\train.csv', datetime.date(2016,10,1),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])

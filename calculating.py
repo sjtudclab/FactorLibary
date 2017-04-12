@@ -148,11 +148,14 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
         print (stock + " Close Yield calculation finished")
     cluster.shutdown()
 
-def calculate_mmt(beginDate, endDate, factor_table = "factors_month"):
+# 计算动量模块单独抽取出来，默认为1个月的动量，因为之后可能要计算两个月，三个月的动量
+# mmt = Close(this month) / Close(last month)
+def calculate_mmt(beginDate, endDate, factor_table = "factors_month", gap = 1):
     cluster = Cluster(['192.168.1.111'])
     session = cluster.connect('factors')
-    
-    rows = session.execute('''SELECT stock FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
+
+    # tradable stocks' collection
+    rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
     stocks = []
     for row in rows:
         stocks.append(row[0])
