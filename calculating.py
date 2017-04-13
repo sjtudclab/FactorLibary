@@ -1,6 +1,7 @@
 # pylint: disable=I0011,C0103,C0326,C0301, W0401,W0614
 from cassandra.cluster import Cluster
 from cassandra.util import Date
+from datetime import timedelta
 import time
 import datetime
 import math
@@ -9,61 +10,67 @@ import math
 # 2. mark the last date of the endYear
 # 3. calulate ROA growth
 # 4. insert into DB
-## ROA: 去年的年末ROA / 前年的年末ROA
+## ROA: 今年此月的ROA / 去年的此月的ROA
 
 def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
     #cassandra connection
     cluster = Cluster(['192.168.1.111'])
     session = cluster.connect('factors') #connect to the keyspace 'factors'
 
-    # rows = session.execute('''
-    # select * from transaction_time 
-    # where type='month' and time > %s and time < %s ALLOW FILTERING;''',[beginDate, endDate])
-    # dateMap = {}
-    # for row in rows:
-    #     date = row.time.date()
-    #     if date.month == 12:
-    #         dateMap[date.year] = date
-
-    # sql = '''select * from factors_month where stock = ? and factor = 'roa' and time in ('''
-    # for day in dateMap.values():
-    #     sql = sql + "'"+ day.strftime("%Y-%m-%d")+ "'"+","
-    # sql = sql[:-1]
-    # sql = sql +");"
-    # print (sql)
-
     # get stocks list with IPO_date
+    # rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE stock = '600444.SH' and trade_status = '1' ALLOW FILTERING ''')
     rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
     stocks = {}
     for row in rows:
         stocks[row[0]] = row[1]
 
-    preparedStmt = session.prepare("INSERT INTO "+factor_table+" (stock, factor, time, value) VALUES (?,'roa_growth', ?, ?)")
+    # 得到去年的12个月的ROA值，以计算今年的ROA值，用375而不是365是为了留出空余给非交易日
+    lastYearOfBeginDate = beginDate - timedelta(days=375)
     selectPreparedStmt = session.prepare("select time, value from "+factor_table+" where stock = ? and factor = 'roa' and time >= ? and time <= ? ALLOW FILTERING")
+    preparedStmt = session.prepare("INSERT INTO "+factor_table+" (stock, factor, time, value) VALUES (?,'roa_growth', ?, ?)")
     #select all ROA value for each stock
     for stock, ipo_date in stocks.items():
-        begin = beginDate if beginDate > ipo_date.date() else ipo_date.date()
+        isOverlappd = False
+        if lastYearOfBeginDate > ipo_date.date():
+            begin = lastYearOfBeginDate  
+        else:
+            begin = ipo_date.date()
+            isOverlappd = True
         rows = session.execute(selectPreparedStmt, (stock, str(begin), str(endDate)))
-        ## calculating ROA Growth
-        cnt = 0
-        prev = 1.0               # previous ROA value
-        growth = 0               # ROA_curr / ROA_prev
+        growth = 0               # ROA_curr / ROA_prev[-12month]
         roa_growth = {}
+
+        ## store historic ROA in tuple array
+        roaMap = []
         for row in rows:
-            # divide when data change
-            if cnt > 0 and row.value != prev:
-                growth = row.value / prev
-            # in case divided by 0
-            if row.value == 0:
-                prev = 1.0
+            roaMap.append((row.time, row.value))
+            # print ((row.time.date().strftime("%Y-%m-%d"), row.value))
+
+        ## calculate growth
+        index = 0
+        length = len(roaMap)
+        # 1. IPO没越界, DB中前12个月无数据
+        # 2. IPO越界，但小于BeginDate
+        # 以第一个不小于BeginDate的交易日作为起点
+        if isOverlappd == False or (isOverlappd == True and ipo_date.date() < beginDate):
+            while index < length and roaMap[index][0].date() < beginDate:
+                index += 1
+        if index < length:
+            print ("%s Begin: %s , IPO: %s index: %d , len: %d" % (stock, str(roaMap[index][0].date()), str(ipo_date.date()),index, length))
+
+        # calculate
+        for i in range(index, length):
+            # 前面没有数据
+            if i < 12:
+                roa_growth[roaMap[i][0].date()] = 0
             else:
-                prev = row.value
-            roa_growth[row.time] = growth
-            cnt += 1
+                prevRoa = roaMap[i-12][1]
+                roa_growth[roaMap[i][0].date()] = roaMap[i][1] / prevRoa if prevRoa != 0 and math.isnan(prevRoa) == False else 0
+
         # insert to DB
         for item in roa_growth.items():
             session.execute_async(preparedStmt, (stock, item[0], item[1]))
-            #print(item[0].date().strftime("%Y-%m-%d"), item[1])
+            # print(item[0].strftime("%Y-%m-%d"), item[1])
 
         print (stock + " roa_growth calculation finished")
 
@@ -194,9 +201,9 @@ def calculate_mmt(beginDate, endDate, factor_table = "factors_month", gap = 1):
 
 ################################
 #### Invoke Function  ##########
-#calculate_ROA(datetime.date(2017,3,1), datetime.datetime.today().date(), "factors_month")
+calculate_ROA(datetime.date(2009,1,1), datetime.datetime.today().date(), "factors_month")
 # calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
 # calculate_mmt(datetime.date(2017,1,26), datetime.date(2017,3,31))
 # calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
 # calculate_Yield(datetime.date(2009,1,1), datetime.date(2017,4,1))
-calculate_mmt(datetime.date(2009,1,1), datetime.date(2017,4,1))
+# calculate_mmt(datetime.date(2009,1,1), datetime.date(2017,4,1))
