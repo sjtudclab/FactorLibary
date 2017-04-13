@@ -23,6 +23,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
         timeList.append(row)
     print(timeList)
 
+    # # 【解耦：迁移至stock.py，定期更新】判断数据有效性
     # 获取某个月份所有可交易的A股 （如此的话每次一支股票只拿一个数据，分多个时间点去拿，请求数目过多，改成批量拉取一支股票
     # 所有因子
     # stocks = w.wset("SectorConstituent", u"sector=全部A股;field=wind_code")
@@ -30,28 +31,29 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     # # Total stock: 3183 [2017-04-13]
     # print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "Total A stocks number: ", len(stocks.Data[0]))
 
-    # stock status update statement
-    updateStmt = session.prepare('''INSERT INTO stock_info(stock, ipo_date, trade_status) VALUES (?,?,?)''')
-    # 判断数据有效性
-    #for stock in ["000852.SZ","603788.SH","603987.SH","603988.SH","603989.SH","603990.SH","603991.SH","603993.SH"]:
-    #for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
+    # # stock status update statement
+    # updateStmt = session.prepare('''INSERT INTO stock_info(stock, ipo_date, trade_status) VALUES (?,?,?)''')
+    # 
+    # #for stock in ["000852.SZ","603788.SH","603987.SH","603988.SH","603989.SH","603990.SH","603991.SH","603993.SH"]:
+    # #for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
     # for stock in stocks.Data[0]:
-        # ipo_status = w.wsd(stock, "ipo_date, trade_status", datetime.datetime.today())
-        # #print (ipo_status)
-        # try:
-        #     days = (datetime.datetime.today() - ipo_status.Data[0][0]).days
-        #     # trade_status 不能用一个变量表示，而是一个时序的因子，这里的0/1只能用区分IPO是否符合要求
-        #     if  days > 90 and ipo_status.Data[1][0] == "交易":
-        #         validStocks[stock] = ipo_status.Data[1][0]
-        #         session.execute(updateStmt, (stock, ipo_status.Data[0][0], '1'))
-        #     else:
-        #         # set status 0
-        #         session.execute(updateStmt, (stock, ipo_status.Data[0][0], '0'))
-        #         print (" Set invalid data: ", stock, str(ipo_status.Data[0][0]))
+    #     ipo_status = w.wsd(stock, "ipo_date, trade_status", datetime.datetime.today())
+    #     #print (ipo_status)
+    #     try:
+    #         days = (datetime.datetime.today() - ipo_status.Data[0][0]).days
+    #         # trade_status 不能用一个变量表示，而是一个时序的因子，这里的0/1只能用区分IPO是否符合要求
+    #         if  days > 90 and ipo_status.Data[1][0] == "交易":
+    #         # if  days > 90:
+    #             validStocks[stock] = ipo_status.Data[1][0]
+    #             session.execute(updateStmt, (stock, ipo_status.Data[0][0], '1'))
+    #         else:
+    #             # set status 0
+    #             session.execute(updateStmt, (stock, ipo_status.Data[0][0], '0'))
+    #             print (" Set invalid data: ", stock, str(ipo_status.Data[0][0]))
 
-        # except TypeError:
-        #     print (" -- Log TypeError at Stock: ", stock, " :\t", str(ipo_status.Data[0][0]))
-    # Valid: 2820 [2017-04-13]
+    #     except TypeError:
+    #         print (" -- Log TypeError at Stock: ", stock, " :\t", str(ipo_status.Data[0][0]))
+    # Valid: 2819 [2017-04-13]
     # tradable stocks' collection
     rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
     validStocks = {}
@@ -59,7 +61,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     for row in rows:
         validStocks[row.stock] = row.ipo_date
         validStockCode.append(row.stock)
-    
+
     validN = len(validStocks)
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " valid stocks' number: ", validN)
     #print (validStocks)
@@ -106,18 +108,21 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
         if cnt % CHUNK_SIZE == 0:
             for s in range(index, cnt):
                 for i in range(len(columns)):
-                    for j in range(len(timeList)):
+                    for j in range(len(dataList[s - index][i])):
                         #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
-                        if dataList[s - index][i][j] is not None:
-                            try:
-                                value = float(dataList[s - index][i][j])
-                            except (ValueError, TypeError, KeyError) as e:
-                                value = float('nan')
-                                print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(dataList[s - index][i][j]))
-                                print (e)
-                                print ("--------------------------------------------------------------------------")
-                        else:
+                        try:
                             value = float('nan')
+                            if dataList[s - index][i][j] is not None:
+                                value = float(dataList[s - index][i][j])
+                        except (ValueError, TypeError, KeyError) as e:
+                            value = float('nan')
+                            print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(dataList[s - index][i][j]))
+                            print (e)
+                            print ("--------------------------------------------------------------------------")
+                        except IndexError as e:
+                            print ("--------------------------------------------------------------------------")
+                            print("len s: %d, len i: %d, len j: %d ~ " %(cnt, len(columns),len(timeList)), (s-index,i,j))
+                            print(e)
                         session.execute_async(preparedStmt, (validStockCode[s],columns[i],timeList[j], value))
             #记录上一次导出数据位置，清空buffer
             index = cnt
@@ -130,18 +135,21 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     # 最后的剩余数据插入cassandra
     for s in range(index, cnt):
         for i in range(len(columns)):
-            for j in range(len(timeList)):
+            for j in range(len(dataList[s - index][i])):
                 #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
-                if dataList[s - index][i][j] is not None:
-                    try:
-                        value = float(dataList[s - index][i][j])
-                    except (ValueError, TypeError, KeyError) as e:
-                        value = float('nan')
-                        print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(dataList[s - index][i][j]))
-                        print (e)
-                        print ("--------------------------------------------------------------------------")
-                else:
+                try:
                     value = float('nan')
+                    if dataList[s - index][i][j] is not None:
+                        value = float(dataList[s - index][i][j])
+                except (ValueError, TypeError, KeyError) as e:
+                    value = float('nan')
+                    print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(dataList[s - index][i][j]))
+                    print (e)
+                    print ("--------------------------------------------------------------------------")
+                except IndexError as e:
+                    print ("--------------------------------------------------------------------------")
+                    print("len s: %d, len i: %d, len j: %d ~ " %(cnt, len(columns),len(timeList)), (s-index,i,j))
+                    print(e)
                 session.execute_async(preparedStmt, (validStockCode[s],columns[i],timeList[j], value))
 
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '---------------- Persistion finished!\n')
@@ -156,4 +164,4 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     cluster.shutdown()
 
 # retrieve newly updated data
-monthRetrieve(datetime.date(2017,3,1), datetime.date(2017,4,1), multi_mfd = True)
+monthRetrieve(datetime.date(2009,1,1), datetime.datetime.today().date(), fields1=['mkt_cap_float','roa'], multi_mfd = False)

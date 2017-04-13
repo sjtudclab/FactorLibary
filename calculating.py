@@ -32,7 +32,7 @@ def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
     for stock, ipo_date in stocks.items():
         isOverlappd = False
         if lastYearOfBeginDate > ipo_date.date():
-            begin = lastYearOfBeginDate  
+            begin = lastYearOfBeginDate
         else:
             begin = ipo_date.date()
             isOverlappd = True
