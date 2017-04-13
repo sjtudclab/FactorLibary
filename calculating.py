@@ -1,15 +1,15 @@
 # pylint: disable=I0011,C0103,C0326,C0301, W0401,W0614
 from cassandra.cluster import Cluster
 from cassandra.util import Date
-from datetime import datetime
 import time
 import datetime
+import math
 ## calculating ROA growth
 # 1. get all the time series
 # 2. mark the last date of the endYear
 # 3. calulate ROA growth
 # 4. insert into DB
-##
+## ROA: 去年的年末ROA / 前年的年末ROA
 
 def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
     #cassandra connection
@@ -32,31 +32,33 @@ def calculate_ROA(beginDate, endDate, factor_table = "factors_month"):
     # sql = sql +");"
     # print (sql)
 
-    # get stocks list
-    rows = session.execute('''SELECT stock FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
-    stocks = []
+    # get stocks list with IPO_date
+    rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
+    stocks = {}
     for row in rows:
-        stocks.append(row[0])
+        stocks[row[0]] = row[1]
 
     preparedStmt = session.prepare("INSERT INTO "+factor_table+" (stock, factor, time, value) VALUES (?,'roa_growth', ?, ?)")
     selectPreparedStmt = session.prepare("select time, value from "+factor_table+" where stock = ? and factor = 'roa' and time >= ? and time <= ? ALLOW FILTERING")
     #select all ROA value for each stock
-    for stock in stocks:
-        rows = session.execute(selectPreparedStmt, (stock, str(beginDate), str(endDate)))
+    for stock, ipo_date in stocks.items():
+        begin = beginDate if beginDate > ipo_date.date() else ipo_date.date()
+        rows = session.execute(selectPreparedStmt, (stock, str(begin), str(endDate)))
         ## calculating ROA Growth
         cnt = 0
         prev = 1.0               # previous ROA value
-        growth = float('nan')    # ROA_curr / ROA_prev
+        growth = 0               # ROA_curr / ROA_prev
         roa_growth = {}
         for row in rows:
-            if cnt > 0 and row[1] != prev:
-                growth = row[1] / prev
+            # divide when data change
+            if cnt > 0 and row.value != prev:
+                growth = row.value / prev
             # in case divided by 0
-            if row[1] == 0:
+            if row.value == 0:
                 prev = 1.0
             else:
-                prev = row[1]
-            roa_growth[row[0]] = growth
+                prev = row.value
+            roa_growth[row.time] = growth
             cnt += 1
         # insert to DB
         for item in roa_growth.items():
@@ -70,13 +72,9 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     # cassandra connection
     cluster = Cluster(['192.168.1.111'])
     session = cluster.connect('factors') #connect to the keyspace 'factors'
-    # get stocks list
-    rows = session.execute('''SELECT stock FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
-    stocks = []
-    for row in rows:
-        stocks.append(row[0])
+
     # month begin & end time list
-    sql="select * from transaction_time where type= '"+TYPE+ "' and time >= '"+ datetime.datetime.strftime(beginDate,"%Y-%m-%d") +"' and time <= '" + datetime.datetime.strftime(endDate,"%Y-%m-%d")+"'"
+    sql="select * from transaction_time where type= '"+TYPE+ "' and time >= '"+ str(beginDate) +"' and time <= '" + str(endDate)+"'"
     print (sql)
     rows = session.execute(sql)
     dateList = []
@@ -112,18 +110,24 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
         dateList = dateList[:-1]
 
     print(dateList)
-    sql = "select time, value from " + calc_table + " where stock = ? and factor = 'close' and time in ("
-    for day in dateList:
-        sql += "'"+str(day)+"',"
-    sql = sql[:-1] + ");"  # omit the extra comma
-    print(sql)
-    selectPreparedStmt = session.prepare(sql)
+
     insertPreparedStmt = session.prepare("INSERT INTO "+store_table+" (stock, factor, time, value) VALUES (?,'Yield', ?, ?)")
+
+    # get stocks list with IPO_date
+    rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
+    stocks = {}
+    for row in rows:
+        stocks[row[0]] = row[1]
 
     #select all daily close price value for each stock
     #for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
-    for stock in stocks:
-        rows = session.execute(selectPreparedStmt, (stock,))
+    for stock, ipo_date in stocks.items():
+        sql = "select time, value from " + calc_table + " where stock = '"+stock+"' and factor = 'close' and time in ("
+        for day in dateList:
+            if day > ipo_date.date():        # delete invalid date
+                sql += "'"+str(day)+"',"
+        sql = sql[:-1] + ");"               # omit the extra comma
+        rows = session.execute(sql)
         ## calculating close Yield
         # divid the first day's close price by the end day in the month
 
@@ -156,38 +160,43 @@ def calculate_mmt(beginDate, endDate, factor_table = "factors_month", gap = 1):
 
     # tradable stocks' collection
     rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
-    stocks = []
+    stocks = {}
     for row in rows:
-        stocks.append(row[0])
+        stocks[row[0]] = row[1]
 
     preparedStmt = session.prepare("INSERT INTO "+factor_table+" (stock, factor, time, value) VALUES (?,'mmt', ?, ?)")
     selectPreparedStmt = session.prepare("select time, value from "+factor_table+" where stock = ? and factor = 'close' and time >= ? and time <= ? ALLOW FILTERING")
     #select all close value for each stock every month
-    for stock in stocks:
-        rows = session.execute(selectPreparedStmt, (stock, str(beginDate), str(endDate)))
+    for stock, ipo_date in stocks.items():
+        begin = beginDate if beginDate > ipo_date.date() else ipo_date.date()
+        rows = session.execute(selectPreparedStmt, (stock, str(begin), str(endDate)))
         ## calculating mmt
         cnt = 0
-        prev = 1.0               # previous close value
-        growth = float('nan')    # Close_curr / Close_prev
+        curr = 0
+        prev = 0            # previous close value
+        mmt = 0             # Close_curr / Close_prev
         mmt_dic = {}
         for row in rows:
-            if cnt > 0 and row[1] != prev:
-                growth = row[1] / prev
+            prev = curr
+            curr = row.value
+            if curr is None or math.isnan(curr):
+                curr = 0
             # in case divided by 0
-            if row[1] == 0:
-                prev = 1.0
-            else:
-                prev = row[1]
-            mmt_dic[row[0]] = growth
+            mmt = 0 if prev == 0 or cnt == 0 else curr / prev
+            mmt_dic[row.time] = mmt
             cnt += 1
         # insert to DB
         for item in mmt_dic.items():
             session.execute_async(preparedStmt, (stock, item[0], item[1]))
-            #print(item[0].date().strftime("%Y-%m-%d"), item[1])
+            # print(item[0].date().strftime("%Y-%m-%d"), item[1])
 
         print (stock + " mmt calculation finished")
 
 ################################
 #### Invoke Function  ##########
 #calculate_ROA(datetime.date(2017,3,1), datetime.datetime.today().date(), "factors_month")
-calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
+# calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
+# calculate_mmt(datetime.date(2017,1,26), datetime.date(2017,3,31))
+# calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
+# calculate_Yield(datetime.date(2009,1,1), datetime.date(2017,4,1))
+calculate_mmt(datetime.date(2009,1,1), datetime.date(2017,4,1))
