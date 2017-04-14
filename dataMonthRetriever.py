@@ -5,7 +5,7 @@ import time
 import datetime
 
 def monthRetrieve(startTime, endTime = datetime.datetime.today(),
-fields1 = ['close', 'mkt_freeshares','mkt_cap_float', 'mfd_buyamt_d', 'mfd_sellamt_d', 'roa', 'pe', 'pb'], 
+fields1 = ['trade_status','close', 'mkt_freeshares','mkt_cap_float', 'mfd_buyamt_d', 'mfd_sellamt_d', 'roa', 'pe', 'pb'], 
 option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", multi_mfd = True):
     # cassandra connect
     cluster = Cluster(['192.168.1.111'])
@@ -79,11 +79,16 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     preparedStmt = session.prepare('''INSERT INTO factors_month(stock, factor, time, value) VALUES (?,?,?,?)''')
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " ------ Starting to insert to DB")
 
+    # 拉取交易状态便于之后数据过滤
+    hasTradeStatus = False
+    if len(fields1) > 1 and fields1[0] == 'trade_status':
+        hasTradeStatus = True
+
     ## 遍历所有股票
     for stock,ipo_date in validStocks.items():
-        # 只取 IPO 之后的数据
-        start = startTime if startTime > ipo_date.date() else ipo_date.date() 
-
+        # 只取 IPO 之后的数据【需求变更，IPO之前的ROA也可能是有用的数据】
+        # start = startTime if startTime > ipo_date.date() else ipo_date.date() 
+        start = startTime
         # 同一个变量，参数不一样，需要分成几次拉取
         wsd_data = w.wsd(stock, fields1, start, endTime, option1).Data
         if multi_mfd == True:
@@ -111,12 +116,20 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
                     for j in range(len(dataList[s - index][i])):
                         #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
                         try:
-                            value = float('nan')
-                            if dataList[s - index][i][j] is not None:
-                                value = float(dataList[s - index][i][j])
+                            value = dataList[s - index][i][j]
+                            if hasTradeStatus == True and i == 0:
+                                # 交易 状态作为一个因子
+                                if  value is not None and value == "交易":
+                                    value = 1
+                                else:
+                                    value = 0
+                            elif value is not None:
+                                value = float(value)
+                            else:
+                                value = float('nan')
                         except (ValueError, TypeError, KeyError) as e:
                             value = float('nan')
-                            print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(dataList[s - index][i][j]))
+                            print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(value))
                             print (e)
                             print ("--------------------------------------------------------------------------")
                         except IndexError as e:
@@ -138,12 +151,19 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
             for j in range(len(dataList[s - index][i])):
                 #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
                 try:
-                    value = float('nan')
-                    if dataList[s - index][i][j] is not None:
-                        value = float(dataList[s - index][i][j])
+                    value = dataList[s - index][i][j]
+                    if hasTradeStatus == True and i == 0:
+                        if  value is not None and value == "交易":
+                            value = 1
+                        else:
+                            value = 0
+                    elif value is not None:
+                        value = float(value)
+                    else:
+                        value = float('nan')
                 except (ValueError, TypeError, KeyError) as e:
                     value = float('nan')
-                    print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(dataList[s - index][i][j]))
+                    print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(value))
                     print (e)
                     print ("--------------------------------------------------------------------------")
                 except IndexError as e:
@@ -156,7 +176,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
 
     #result testing
     print("---------- Inserstion Testing: ")
-    rows = session.execute("select * from factors_month where stock='000852.SZ' and factor = 'mmt' and time > '2017-03-02'")
+    rows = session.execute("select * from factors_month where stock='000852.SZ' and factor in ('roa', 'trade_status') and time > '2017-01-02'")
     for row in rows:
         print(row.stock,row.factor,row.time,row.value)
 
@@ -164,6 +184,6 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     cluster.shutdown()
 
 # retrieve newly updated data
-# monthRetrieve(datetime.date(2009,1,1), datetime.datetime.today().date(), fields1=['mkt_cap_float','roa'], multi_mfd = False)
+monthRetrieve(datetime.date(2009,1,1), datetime.date(2017,3,31), fields1=['trade_status','close', 'mkt_freeshares','mkt_cap_float','roa'], multi_mfd = False)
 # retrieve data from last year to 3.31 to inherit previous data
-monthRetrieve(datetime.date(2016,12,1), datetime.date(2017,3,31))
+# monthRetrieve(datetime.date(2016,12,1), datetime.date(2017,3,31))
