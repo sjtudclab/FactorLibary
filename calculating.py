@@ -83,15 +83,16 @@ def calculate_ROA_growth(beginDate, endDate, factor_table = "factors_month"):
 
         print (stock + " roa_growth calculation finished")
 
-## Yield = Close(month_start) / Close(mont_end)
+## Yield = Close(next_month_end) / Close(next_month_start)
+# eg. Yield(03-31) = Close(04-30) / Close(04-01)
 def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table = "factors_month", TYPE="D"):
     # cassandra connection
     cluster = Cluster(['192.168.1.111'])
     session = cluster.connect('factors') #connect to the keyspace 'factors'
 
-    # month begin & end time list
-    sql="select * from transaction_time where type= '"+TYPE+ "' and time >= '"+ str(beginDate) +"' and time <= '" + str(endDate)+"'"
-    print (sql)
+    # month begin & end time list, 1 month after, 37 reserved for error buffer
+    nextMonth = endDate + timedelta(days=37)
+    sql="select * from transaction_time where type= '"+TYPE+ "' and time >= '"+ str(beginDate) +"' and time <= '" + str(nextMonth)+"'"
     rows = session.execute(sql)
     dateList = []
     prevMonth = beginDate.month
@@ -120,17 +121,17 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
 
     if dateList[1].month != beginDate.month:
         dateList = dateList[1:]
-    print(dateList)
+    # print(dateList)
     # make it even
     if len(dateList) % 2 != 0:
         dateList = dateList[:-1]
-
     print(dateList)
 
     insertPreparedStmt = session.prepare("INSERT INTO "+store_table+" (stock, factor, time, value) VALUES (?,'Yield', ?, ?)")
 
     # get stocks list with IPO_date
     rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
+    # rows = session.execute('''SELECT stock, ipo_date FROM stock_info WHERE stock = '603636.SH' and trade_status = '1' ALLOW FILTERING ''')
     stocks = {}
     for row in rows:
         stocks[row[0]] = row[1]
@@ -140,20 +141,24 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     for stock, ipo_date in stocks.items():
         sql = "select time, value from " + calc_table + " where stock = '"+stock+"' and factor = 'close' and time in ("
         for day in dateList:
-            if day > ipo_date.date():        # delete invalid date
-                sql += "'"+str(day)+"',"
+            # if day > ipo_date.date():        # delete invalid date [UPDATE: final filter will do this]
+            sql += "'"+str(day)+"',"
         sql = sql[:-1] + ");"               # omit the extra comma
         rows = session.execute(sql)
+        # print(sql)
         ## calculating close Yield
         # divid the first day's close price by the end day in the month
 
         prev = 1.0     # previous Yield value
         yield_map = {}
         cnt = 0
+        prevTime = beginDate
         for row in rows:
             # end of month, store the quotient
             if cnt % 2 > 0:
-                yield_map[row.time] = float(row.value) / float(prev)
+                if cnt > 1:
+                    yield_map[prevTime] = float(row.value) / float(prev)
+                prevTime = row.time
             # in case divided by 0
             elif row.value == 0:
                 prev = 1.0
@@ -161,11 +166,13 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
                 prev = row.value
             #print ("cnt " + str(cnt)+" K: ", row[0]," V: ", row[1])
             cnt = cnt + 1
+        # last Value is always 0
+        yield_map[dateList[-1]] = 0
         # insert to DB
         for item in yield_map.items():
             session.execute_async(insertPreparedStmt, (stock, item[0], item[1]))
-            # print(item[0].date().strftime("%Y-%m-%d"), item[1])
-        print (stock + " Close Yield calculation finished")
+            # print(str(item[0]), item[1])
+        print (stock + " Yield calculation finished")
     cluster.shutdown()
 
 # 计算动量模块单独抽取出来，默认为1个月的动量，因为之后可能要计算两个月，三个月的动量
@@ -212,7 +219,7 @@ def calculate_mmt(beginDate, endDate, factor_table = "factors_month", gap = 1):
 #### Invoke Function  ##########
 # calculate_mmt(datetime.date(2017,1,26), datetime.date(2017,3,31))
 # calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
-# calculate_Yield(datetime.date(2009,1,1), datetime.date(2017,4,1))
-calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
+calculate_Yield(datetime.date(2009,1,1), datetime.date(2017,4,1))
+# calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
 # calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
 # calculate_mmt(datetime.date(2009,1,1), datetime.datetime.today().date())
