@@ -5,7 +5,7 @@ import time
 import datetime
 
 def monthRetrieve(startTime, endTime = datetime.datetime.today(),
-fields1 = ['close', 'trade_status', 'mkt_freeshares','mkt_cap_float', 'mfd_buyamt_d', 'mfd_sellamt_d', 'roa', 'pe', 'pb'], 
+fields1 = ['close', 'mkt_freeshares','mkt_cap_float', 'mfd_buyamt_d', 'mfd_sellamt_d', 'roa', 'pe', 'pb'], 
 option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", multi_mfd = True):
     # cassandra connect
     cluster = Cluster(['192.168.1.111'])
@@ -164,4 +164,6 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     cluster.shutdown()
 
 # retrieve newly updated data
-monthRetrieve(datetime.date(2009,1,1), datetime.datetime.today().date(), fields1=['mkt_cap_float','roa'], multi_mfd = False)
+# monthRetrieve(datetime.date(2009,1,1), datetime.datetime.today().date(), fields1=['mkt_cap_float','roa'], multi_mfd = False)
+# retrieve data from last year to 3.31 to inherit previous data
+monthRetrieve(datetime.date(2016,12,1), datetime.date(2017,3,31))

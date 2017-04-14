@@ -81,6 +81,6 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
 #sort_factors("2009-01-01", factors=['Yield'])
 # sort_factors("2009-01-01", factors=['Yield'])
 # sort_factors("2017-03-31", endDate="2017-03-31", factors=['mkt_freeshares'])
-# sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 sort_factors("2009-01-01", factors=['mmt'])
+# sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 
