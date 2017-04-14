@@ -44,12 +44,13 @@ def updateAStocks(extraIndex = []):
         ipo_status = w.wsd(stock, "ipo_date, trade_status", datetime.datetime.today())
         try:
             days = (datetime.datetime.today() - ipo_status.Data[0][0]).days
-            if  days > 90 and ipo_status.Data[1][0] == "交易":
+            # if  days > 90 and ipo_status.Data[1][0] == "交易":
+            if  days > 92:
                 validStocks.append(stock)
-                session.execute_async(updateStmt, (stock, ipo_status.Data[0][0], '1')) # status 1 : "交易"
+                session.execute(updateStmt, (stock, ipo_status.Data[0][0], '1')) # status 1 : "交易"
             else:
                 # set status 0
-                session.execute_async(updateStmt, (stock, ipo_status.Data[0][0], '0')) # status 0 : "不可交易"
+                session.execute(updateStmt, (stock, ipo_status.Data[0][0], '0')) # status 0 : "不可交易"
                 print (" Set invalid data: ", stock, str(ipo_status.Data[0][0]))
 
         except TypeError:
@@ -102,6 +103,59 @@ def updateTransactionTime(startTime, endTime = datetime.datetime.today(),TYPE='D
     for date in timeList:
         session.execute(preparedStmt, (TYPE, date))
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())," Updating Complete!")
+
+
+def updateStatus(startTime, endTime):
+    # 启动Wind API
+    w.start()
+    # #取全部 A 股股票代码、名称信息(不写field，默认为wind_code & sec_name & date)
+    # stocks = w.wset("SectorConstituent",u"sector=全部A股;field=wind_code,sec_name")
+    # data = stocks.Data
+   
+    cluster = Cluster(['192.168.1.111'])
+    session = cluster.connect('factors') #connect to the keyspace 'factors'
+    
+    # select all A share
+    rows = session.execute('''SELECT stock FROM stock_info ALLOW FILTERING ''')
+    stocks = []
+    for row in rows:
+        stocks.append(row[0])
+
+    # 更新IPO_DATE & TRADE_STATUS
+    # stock status update statement
+    updateStmt = session.prepare('''INSERT INTO stock_info(stock, ipo_date, trade_status) VALUES (?,?,?)''')
+    
+    
+    validStocks =[]
+    ipo_valid =[]
+    trade_valid =[]
+    # 判断数据有效性
+    #for stock in ["000852.SZ","603788.SH","603987.SH","603988.SH","603989.SH","603990.SH","603991.SH","603993.SH"]:
+    # for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
+    for stock in stocks:
+        ipo_status = w.wsd(stock, "ipo_date, trade_status", startTime)
+        try:
+            days = (datetime.datetime.today() - ipo_status.Data[0][0]).days
+            if  days > 90:
+                ipo_valid.append(stock)
+                if ipo_status.Data[1][0] == "交易":
+                    trade_valid.append(stock)
+                    validStocks.append(stock)
+                # session.execute_async(updateStmt, (stock, ipo_status.Data[0][0], '1')) # status 1 : "交易"
+            elif ipo_status.Data[1][0] == "交易":
+                trade_valid.append(stock)
+                # set status 0
+                # session.execute_async(updateStmt, (stock, ipo_status.Data[0][0], '0')) # status 0 : "不可交易"
+            else:
+                print (" Set invalid data (IPO < 90 && 不可交易): ", stock, str(ipo_status.Data[0][0]))
+        except TypeError:
+            print (" -- Log TypeError at Stock: ", stock, " :\t", str(ipo_status.Data[0][0]))
+    validN = len(validStocks)
+    print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " ipo > 90 &&  可交易 stocks' number: ", validN)
+    print (" ipo > 90 stocks' number: ", len(ipo_valid))
+    print (" 可交易 stocks' number: ", len(trade_valid))
+
+
 #########################################################
 ## Updating Available A share Stock & transaction_time ##
 #########################################################
@@ -110,3 +164,4 @@ def updateTransactionTime(startTime, endTime = datetime.datetime.today(),TYPE='D
 # updateTransactionTime('2009-01-01', TYPE='M')
 # update stocks
 updateAStocks(extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])
+# updateStatus("2015-8-31","2015-8-31")
