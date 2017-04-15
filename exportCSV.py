@@ -17,11 +17,11 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     cluster = Cluster(['202.120.40.111'])
     session = cluster.connect('factors') #connect to the keyspace 'factors'
 
-    # get valid stocks in A share
-    rows = session.execute('''select stock from stock_info''')
-    stocks = []
+    # get valid stocks in A share,     # IPO PREPARE
+    rows = session.execute(''' SELECT stock, ipo_date FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
+    stocks = {}
     for row in rows:
-        stocks.append(row[0])
+        stocks[row.stock] = row.ipo_date
 
     # sorting factors since they're ordered in cassandra
     # factors = sorted(factors)
@@ -35,7 +35,9 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     for row in rows:
         dateList.append(row.time)
 
-    countStmt = session.prepare(''' SELECT count(*) from factors_month WHERE factor = ? and time = ? ALLOW FILTERING ; ''')
+    # retrieve valid stock number which has been stored in DB at the sorting phase
+    countStmt = session.prepare(''' 
+    SELECT * from factors_month WHERE stock = 'VALID_STOCK_COUNT' and factor = 'COUNT' and time = ? ''')
     # prepare SQL
     SQL = "SELECT * FROM "+table+" WHERE stock = ? AND factor IN ("
     for factor in factors:
@@ -57,16 +59,11 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
         # retrieve data
         for day in dateList:
             # real stock number on every trading day
-            sizeMap = {}
-            for factor in factors:
-                pos = factor.find('rank')
-                if pos != -1:
-                    factorName = factor[:pos-1]
-                    rows = session.execute(countStmt,(factorName,day))
-                    for row in rows:
-                        sizeMap[factor] = row[0]
-                        break
-            for stock in stocks:
+            rows = session.execute(countStmt,(day,))
+            for row in rows:
+                validStockNum = row.value
+                break
+            for stock, ipo_date in stocks.items():
                 line = []
                 dic = {}    # paired K/V for ordering
                 rows = session.execute(preparedStmt, (stock,day))
@@ -76,8 +73,10 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                 line.append(stock+'_' + str(day))
                 for row in rows:
                     empty = False
+                    # IPO Filtering
+                    if (day.date() - ipo_date.date()).days <= 92:
+                        continue
                     if row.factor.find('rank') != -1:
-                        validStockNum = sizeMap[row.factor]          # for each factor, has a  valid total number
                         rank = int(row.value / validStockNum * 1000) # normalize rank value
 
                         if row.factor.find('Yield') != -1:

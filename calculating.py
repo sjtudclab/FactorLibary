@@ -219,7 +219,7 @@ def calculate_mmt(beginDate, endDate, factor_table = "factors_month", gap = 1):
 #### Invoke Function  ##########
 # calculate_mmt(datetime.date(2017,1,26), datetime.date(2017,3,31))
 # calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
-calculate_Yield(datetime.date(2009,1,1), datetime.date(2017,4,1))
+# calculate_Yield(datetime.date(2009,1,1), datetime.date(2017,4,1))
 # calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
 # calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
-# calculate_mmt(datetime.date(2009,1,1), datetime.datetime.today().date())
+calculate_mmt(datetime.date(2009,1,1), datetime.datetime.today().date())

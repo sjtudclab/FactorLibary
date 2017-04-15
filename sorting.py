@@ -58,6 +58,7 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
     for row in rows:
         ipoMap[row.stock] = row.ipo_date
     # sort each factor for all stocks at each time step
+    once = True
     for factor in factors:
         print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " Sorting [ %s ] started !" % (factor))
         for day in dateList:
@@ -95,7 +96,11 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
                 # # if row.stock == '600651.SH':
                 # if row.stock == '603636.SH':
                 #     print("--- value --",row.time,factor, row.stock, ' ', row.value, ' ',  cnt)
+            ## Store Valid Stock Number for Ranking Use
+            if once is True:
+                session.execute(insertPreparedStmt,('VALID_STOCK_COUNT','COUNT', day, cnt))
             print("%s - [ %s ] - complete sorting [ %d stocks]" % (day.date().strftime("%Y-%m-%d"), factor, cnt))
+        once = False
     # close connection with cassandra
     #cluster.shutdown()
 

@@ -63,8 +63,14 @@ def delError():
     for row in rows:
         # print(row.stock,  row.ipo_date)
         # session.execute(delete31PreparedStmt,(row.stock,))
-        for factor in columns:
-            session.execute(deleteWrongData,(row.stock, factor))
+        # for factor in columns:
+        #     session.execute(deleteWrongData,(row.stock, factor))
+        if cnt % 1000 == 0:
+            print(" Deleting %d at %s" % (cnt, row.stock))
+        cnt += 1
+    print(" When Iteration Finished Once")
+    for row in rows:
+        print(", Can not Repeat!!!")
         if cnt % 1000 == 0:
             print(" Deleting %d at %s" % (cnt, row.stock))
         cnt += 1
