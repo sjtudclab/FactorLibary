@@ -72,7 +72,9 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
                 continue
             #print (rows.currentRows)
             sortedRows = sorted(rows, key=lambda x: x.value, reverse=descending)
-            cnt = 0 
+            cnt = 0
+            rank = 0
+            prev = -1000000000000
             for row in sortedRows:
                 ###############################
                 ### Filter out invalid data ###
@@ -90,12 +92,16 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
                 if valid != 1:
                     continue
                 cnt += 1
-                session.execute_async(insertPreparedStmt, (row.stock, factor + '_rank', row.time, cnt))
+                # same value, same rank
+                if row.value != prev:
+                    rank += 1
+                    prev = row.value
+                session.execute_async(insertPreparedStmt, (row.stock, factor + '_rank', row.time, rank))
                 # if cnt < 20:
                 #     print(row.time,factor, row.stock, ' ', row.value, ' ',  cnt)
                 # # if row.stock == '600651.SH':
                 # if row.stock == '603636.SH':
-                #     print("--- value --",row.time,factor, row.stock, ' ', row.value, ' ',  cnt)
+                #     print("--- value --",row.time,factor, row.stock, ' ', row.value, ' rank ',rank, cnt)
             ## Store Valid Stock Number for Ranking Use
             if once is True:
                 session.execute(insertPreparedStmt,('VALID_STOCK_COUNT','COUNT', day, cnt))
@@ -109,7 +115,7 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
 #sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth','mfd_buyamt_d1', 'mfd_sellamt_d1', 'roa', 'pe', 'pb','mfd_buyamt_d2', 'mfd_sellamt_d2','mfd_buyamt_d4', 'mfd_sellamt_d4'])
 #sort_factors("2009-01-01", factors=['Yield'])
 # sort_factors("2009-01-01", factors=['Yield'])
-# sort_factors("2017-03-31", endDate="2017-03-31", factors=['mkt_freeshares'])
+# sort_factors("2017-03-31", endDate="2017-03-31", factors=['Yield'])
 # sort_factors("2015-08-31",endDate="2015-08-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2016-10-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2015-08-31", factors=['mmt'])

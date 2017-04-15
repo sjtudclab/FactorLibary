@@ -17,7 +17,7 @@ from sorting import sort_factors
 # # retrieve newly updated data
 # monthRetrieve("2017-03-01","2017-04-01")
 # calculating
-calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
+calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
 calculate_Yield(datetime.date(2009,1,1), datetime.date(2017,4,1))
 calculate_mmt(datetime.date(2009,1,1), datetime.date(2017,4,1))
 sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth','Yield'])

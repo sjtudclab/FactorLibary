@@ -46,6 +46,9 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
     SQL = SQL +") AND time = ?;"
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " PREPARE QUERY SQL: \n"+SQL)
     preparedStmt = session.prepare(SQL)
+    # select 'trade_status'
+    tradeStmt = session.prepare('''select * from factors_month WHERE stock = ?
+     and factor = 'trade_status' and time = ? ''')
 
     # open CSV file & write first line: title
     # NOTICE:  [wb] mode won't result in problem of blank line
@@ -64,6 +67,16 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                 validStockNum = row.value
                 break
             for stock, ipo_date in stocks.items():
+                ## Trade_Status Filtering
+                tradeRow = session.execute(tradeStmt,(stock, day))
+                valid = 0
+                for status in tradeRow:
+                    valid = status.value
+                    break
+                if valid != 1:
+                    continue
+
+                ## Calculating
                 line = []
                 dic = {}    # paired K/V for ordering
                 rows = session.execute(preparedStmt, (stock,day))
