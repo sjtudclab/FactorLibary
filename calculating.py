@@ -92,7 +92,8 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
 
     # month begin & end time list, 1 month after, 37 reserved for error buffer
     nextMonth = endDate + timedelta(days=37)
-    sql="select * from transaction_time where type= '"+TYPE+ "' and time >= '"+ str(beginDate) +"' and time <= '" + str(nextMonth)+"'"
+    firstDay = datetime.date(beginDate.year, beginDate.month,1)
+    sql="select * from transaction_time where type= '"+TYPE+ "' and time >= '"+ str(firstDay) +"' and time <= '" + str(nextMonth)+"'"
     rows = session.execute(sql)
     dateList = []
     prevMonth = beginDate.month
@@ -100,7 +101,7 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     prevDay = None
     currDay = None
     cnt = 0
-    # 筛选出月初和月末的日期
+    # 筛选出月初和月末的交易日日期
     for row in rows:
         prevDay = currDay
         prevMonth = currMonth
@@ -110,19 +111,19 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
             dateList.append(currDay)
         currMonth = currDay.month
         #print('currDay: %s currentMonth: %s' % (currDay, currMonth))
-        # month change
+        # month change, add previous month end & this month start
         if currMonth != prevMonth:
             if prevDay is not None:
                 dateList.append(prevDay)
             dateList.append(currDay)
         cnt += 1
     # omit 1st one when it's the end of month
-    print(str(cnt)+" Size of dateList: ",len(dateList))
+    print(" Size of dateList: ",len(dateList))
 
-    if dateList[1].month != beginDate.month:
-        dateList = dateList[1:]
+    # if dateList[1].month != beginDate.month:
+    #     dateList = dateList[1:]
     # print(dateList)
-    # make it even
+    # make it even, 凑齐月初,月末
     if len(dateList) % 2 != 0:
         dateList = dateList[:-1]
     print(dateList)
@@ -135,7 +136,6 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     stocks = {}
     for row in rows:
         stocks[row[0]] = row[1]
-
     #select all daily close price value for each stock
     #for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
     for stock, ipo_date in stocks.items():
@@ -148,31 +148,36 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
         # print(sql)
         ## calculating close Yield
         # divid the first day's close price by the end day in the month
-
         prev = 1.0     # previous Yield value
         yield_map = {}
         cnt = 0
+        size = len(dateList)
         prevTime = beginDate
         for row in rows:
             # end of month, store the quotient
             if cnt % 2 > 0:
                 if cnt > 1:
-                    yield_map[prevTime] = float(row.value) / float(prev)
+                    value = row.value
+                    if math.isnan(value):
+                        value = 0 # last data if not available
+                    yield_map[prevTime] = float(value) / float(prev)
                 prevTime = row.time
             # in case divided by 0
             elif row.value == 0:
-                prev = 1.0
+                prev = float('nan')
             else:
                 prev = row.value
             #print ("cnt " + str(cnt)+" K: ", row[0]," V: ", row[1])
             cnt = cnt + 1
-        # last Value is always 0
+
+        # last Value is always 0, would be updated when new data comes
         yield_map[dateList[-1]] = 0
         # insert to DB
         for item in yield_map.items():
             session.execute_async(insertPreparedStmt, (stock, item[0], item[1]))
             # print(str(item[0]), item[1])
-        print (stock + " Yield calculation finished")
+        # print (stock + " Yield calculation finished",cnt)
+    print(str(len(stocks))," Stock's Momentum Calculation Complete ")
     cluster.shutdown()
 
 # 计算动量模块单独抽取出来，默认为1个月的动量，因为之后可能要计算两个月，三个月的动量
@@ -191,8 +196,10 @@ def calculate_mmt(beginDate, endDate, factor_table = "factors_month", gap = 1):
     selectPreparedStmt = session.prepare("select time, value from "+factor_table+" where stock = ? and factor = 'close' and time >= ? and time <= ? ALLOW FILTERING")
     #select all close value for each stock every month
     for stock, ipo_date in stocks.items():
-        begin = beginDate if beginDate > ipo_date.date() else ipo_date.date()
-        rows = session.execute(selectPreparedStmt, (stock, str(begin), str(endDate)))
+        # 1 month ahead
+        lastMonth = beginDate - timedelta(days=37)
+        # begin = beginDate if beginDate > ipo_date.date() else ipo_date.date() ## final filter will do the duty
+        rows = session.execute(selectPreparedStmt, (stock, str(lastMonth), str(endDate)))
         ## calculating mmt
         cnt = 0
         curr = 0
@@ -200,26 +207,30 @@ def calculate_mmt(beginDate, endDate, factor_table = "factors_month", gap = 1):
         mmt = 0             # Close_curr / Close_prev
         mmt_dic = {}
         for row in rows:
+            if cnt == 0:
+                curr = row.value
+                cnt += 1
+                continue
             prev = curr
             curr = row.value
-            if curr is None or math.isnan(curr):
-                curr = 0
+            # if math.isnan(curr):
+            #     curr = 0
             # in case divided by 0
-            mmt = 0 if prev == 0 or cnt == 0 else curr / prev
+            mmt = curr / prev if prev != 0 else float('nan')
             mmt_dic[row.time] = mmt
             cnt += 1
+        print (stock + " mmt calculation finished", str(len(mmt_dic)), cnt)
         # insert to DB
         for item in mmt_dic.items():
             session.execute_async(preparedStmt, (stock, item[0], item[1]))
             # print(item[0].date().strftime("%Y-%m-%d"), item[1])
 
-        print (stock + " mmt calculation finished")
-
+    print(str(len(stocks))," Stock's Momentum Calculation Complete ",cnt-1," days")
 ################################
 #### Invoke Function  ##########
 # calculate_mmt(datetime.date(2017,1,26), datetime.date(2017,3,31))
 # calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
-# calculate_Yield(datetime.date(2009,1,1), datetime.date(2017,4,1))
-calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
+# calculate_Yield(datetime.date(2016,10,31), datetime.date(2016,10,31))
+# calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
 calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
 calculate_mmt(datetime.date(2009,1,1), datetime.datetime.today().date())
