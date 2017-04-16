@@ -58,7 +58,6 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
     for row in rows:
         ipoMap[row.stock] = row.ipo_date
     # sort each factor for all stocks at each time step
-    once = True
     for factor in factors:
         print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), " Sorting [ %s ] started !" % (factor))
         for day in dateList:
@@ -103,9 +102,8 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
                 # if row.stock == '603636.SH':
                 #     print("--- value --",row.time,factor, row.stock, ' ', row.value, ' rank ',rank, cnt)
             ## Store Valid Stock Number for Ranking Use
-            if once is True:
-                session.execute(insertPreparedStmt,('VALID_STOCK_COUNT','COUNT', day, cnt))
-            print("%s - [ %s ] - complete sorting [ %d stocks]" % (day.date().strftime("%Y-%m-%d"), factor, cnt))
+            session.execute(insertPreparedStmt,('VALID_STOCK_COUNT',factor + '_rank', day, rank))
+            print("%s - [ %s ] - complete sorting [ %d stocks], total rank %d" % (day.date().strftime("%Y-%m-%d"), factor, cnt, rank))
         once = False
     # close connection with cassandra
     #cluster.shutdown()
@@ -119,5 +117,5 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
 # sort_factors("2015-08-31",endDate="2015-08-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2016-10-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2015-08-31", factors=['mmt'])
-sort_factors("2009-01-01", factors=['mmt','Yield'])
+sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 
