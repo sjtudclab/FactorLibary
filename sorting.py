@@ -21,7 +21,7 @@ print ("Ascending order by name: ", sorted(students, key = attrgetter('name')))
 # pylint: disable=I0011,C0103,C0326,C0301, W0401,W0614
 from cassandra.cluster import Cluster
 from cassandra.util import Date
-from datetime import datetime
+import datetime
 import time
 
 #sorting factors we need
@@ -29,7 +29,7 @@ import time
 # 2. for each time point, select all stock's factor value
 # 3. sorting
 # 4. index them & insert into DB
-def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table = "factors_month", descending=True):
+def sort_factors(beginDate, endDate=datetime.datetime.today().date(), factors = [], table = "factors_month", descending=True):
     if len(factors) == 0:
         return
     #cassandra connection
@@ -117,5 +117,5 @@ def sort_factors(beginDate, endDate=datetime.today().date(), factors = [], table
 # sort_factors("2015-08-31",endDate="2015-08-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2016-10-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2015-08-31", factors=['mmt'])
-sort_factors("2009-01-01", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
+sort_factors(datetime.date(2012,9,28), datetime.date(2012,11,30), factors=['roa_growth'])
 

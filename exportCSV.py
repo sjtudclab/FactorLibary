@@ -4,6 +4,7 @@ from cassandra.util import Date
 import time
 import datetime
 import csv
+import math
 import os
 
 ################################################################################################
@@ -92,7 +93,7 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                     if (day.date() - ipo_date.date()).days <= 92:
                         continue
                     if row.factor.find('rank') != -1:
-                        rank = int(row.value / factorSizeMap[row.factor] * 1000) # normalize rank value
+                        rank = math.ceil(row.value / factorSizeMap[row.factor] * 1000) # normalize rank value
 
                         if row.factor.find('Yield') != -1:
                             # rank = int(row.value / totalStockNum * 1000)
@@ -143,4 +144,4 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
 
 ##############################################
 ################# USAGE EXAMPLE ##############
-export('E:\\train.csv', datetime.date(2016,10,31),datetime.date(2016,10,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
+export('D:\\rongshidata\\alldata_416_2.csv', datetime.date(2015,01,31),datetime.date(2017,03,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
