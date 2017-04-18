@@ -5,7 +5,10 @@ import time
 import datetime
 import csv
 import math
+from dateutil.relativedelta import relativedelta
+
 import os
+
 
 ################################################################################################
 ## Select all valid stock with required factors identified by stock code & date, saved in CSV ##
@@ -90,7 +93,9 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                 for row in rows:
                     empty = False
                     # IPO Filtering
-                    if (day.date() - ipo_date.date()).days <= 92:
+                    filterDate = datetime.datetime.strptime(str(day), "%Y-%m-%d") + relativedelta(months=-3)
+                    ipoDate = datetime.datetime.strptime(str(ipo_date), "%Y-%m-%d")
+                    if (filterDate <= ipoDate):
                         continue
                     if row.factor.find('rank') != -1:
                         rank = math.ceil(row.value / factorSizeMap[row.factor] * 1000) # normalize rank value
