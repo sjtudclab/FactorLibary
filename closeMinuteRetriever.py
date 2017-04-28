@@ -13,7 +13,7 @@ def minuteRetrieve(startTime, endTime,futures,fields = ['close'], option = "", t
         wsi = w.wsi(future, fields, startTime, endTime, option)
         if wsi.ErrorCode != 0:
             print(future, " !!!===== WIND ERROR CODE: ", wsi.ErrorCode)
-            exit()
+            continue
 
         cluster = Cluster(['192.168.1.111'])
         session = cluster.connect('factors') # factors: factors_month
@@ -29,7 +29,7 @@ def minuteRetrieve(startTime, endTime,futures,fields = ['close'], option = "", t
                 # print(fields[i], wsi.Times[j], wsi.Data[i][j])
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) ,future,' ---------------- Pulling finished!\n')
 
-minuteRetrieve("2015-11-20 09:00:00", "2017-04-17 15:00:00",
+minuteRetrieve("2015-04-20 09:00:00", "2015-11-20 15:00:00",
 ["IF1601.CFE","IF1602.CFE","IF1603.CFE","IF1604.CFE","IF1605.CFE","IF1606.CFE","IF1607.CFE",
 "IF1608.CFE","IF1609.CFE","IF1610.CFE","IF1611.CFE","IF1612.CFE","IF1701.CFE","IF1702.CFE","IF1703.CFE"],
 ['close'])

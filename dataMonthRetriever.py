@@ -184,6 +184,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     cluster.shutdown()
 
 # retrieve newly updated data
-monthRetrieve(datetime.date(2009,1,1), datetime.date(2017,3,31), fields1=['trade_status','close', 'mkt_freeshares','mkt_cap_float','roa'], multi_mfd = False)
+# monthRetrieve(datetime.date(2009,1,1), datetime.date(2017,3,31), fields1=['trade_status','close', 'mkt_freeshares','mkt_cap_float','roa'], multi_mfd = False)
+monthRetrieve(datetime.date(2017,3,31), datetime.date(2017,3,31), fields1=['roa'], multi_mfd = False)
 # retrieve data from last year to 3.31 to inherit previous data
 # monthRetrieve(datetime.date(2016,12,1), datetime.date(2017,3,31))

@@ -226,11 +226,51 @@ def calculate_mmt(beginDate, endDate, factor_table = "factors_month", gap = 1):
             # print(item[0].date().strftime("%Y-%m-%d"), item[1])
 
     print(str(len(stocks))," Stock's Momentum Calculation Complete ",cnt-1," days")
+
+##一个月一个月地对每个mfd_buy_sell_d求和
+# 注意：先变成万元使数字变小，减少运算复杂度（不会溢出，因为浮点数在计算机内用科学计数法存储double:-2^1024 ~ 2^1024
+
+def calculate_mfd_sum(beginDate, endDate, factors=['mfd_buyamt_d', 'mfd_sellamt_d','mfd_buyamt_d2', 'mfd_sellamt_d2','mfd_buyamt_d4', 'mfd_sellamt_d4']):
+    cluster = Cluster(['192.168.1.111'])
+    session = cluster.connect('factors')
+
+    # IPO距今至少三个月的合理股票
+    rows = session.execute('''SELECT stock FROM stock_info WHERE trade_status = '1' ALLOW FILTERING ''')
+    stocks = []
+    for row in rows:
+        stocks.append(row[0])
+
+    # 所有月末时间
+    rows = session.execute("select time from transaction_time WHERE type='M' and time >= %s and time<= %s ",(beginDate,endDate))
+    days = []
+    for row in rows:
+        days.append(row[0])
+
+    # 上个月的月末作为起始点（不包括exclusive），本月的月末作为终点（包括inclusive）
+    selectPreparedStmt = session.prepare("select value from factors_day where stock = ? and factor = ? and time > ? and time <= ? ALLOW FILTERING")
+    insertPreparedStmt = session.prepare("INSERT INTO factors_month (stock, factor, time, value) VALUES (?, ?, ?, ?)")
+
+    for stock in stocks:
+        for factor in factors:
+            prevDay = beginDate
+            for day in days:
+                mfd_sum = 0.0
+                rows = session.execute(selectPreparedStmt, (stock, factor, prevDay, day))
+                for row in rows:
+                    if row.value is not None:
+                        value  = row.value / 10000.0
+                        mfd_sum += value
+                # print(prevDay, " -- ", day, stock, factor, day, mfd_sum)
+                prevDay = day
+                # insert into db
+                session.execute(insertPreparedStmt, (stock, factor, day, mfd_sum))
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '---------------- Calculate %s %s complete!'%(stock, str(factors)))
 ################################
 #### Invoke Function  ##########
 # calculate_mmt(datetime.date(2017,1,26), datetime.date(2017,3,31))
 # calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
 # calculate_Yield(datetime.date(2016,10,31), datetime.date(2016,10,31))
 # calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
-calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
-calculate_mmt(datetime.date(2009,1,1), datetime.datetime.today().date())
+# calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
+# calculate_mmt(datetime.date(2009,1,1), datetime.datetime.today().date())
+calculate_mfd_sum(datetime.date(2012,1,1), datetime.date(2017,4,27),factors=['mfd_buyamt_d','mfd_buyamt_d4'])
