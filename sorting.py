@@ -117,5 +117,6 @@ def sort_factors(beginDate, endDate=datetime.datetime.today().date(), factors = 
 # sort_factors("2015-08-31",endDate="2015-08-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2016-10-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2015-08-31", factors=['mmt'])
-sort_factors(datetime.date(2017,4,1), datetime.date(2017,4,30), factors=['mfd_buyamt_d','mfd_buyamt_d4','mkt_freeshares','mmt','Yield'])
+# sort_factors(datetime.date(2017,3,31), datetime.date(2017,4,30), factors=['mfd_buyamt_d','mfd_buyamt_d4','mkt_freeshares','mmt','Yield'])
+sort_factors(datetime.date(2017,3,31), datetime.date(2017,4,30), factors=['Yield'])
 
