@@ -272,9 +272,9 @@ def calculate_mfd_sum(beginDate, endDate, factors=['mfd_buyamt_d', 'mfd_sellamt_
 ################################
 #### Invoke Function  ##########
 # calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
-# calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
+calculate_ROA_growth(datetime.date(2015,1,1), datetime.date(2017,4,30), "factors_month")
 # calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
 # calculate_mmt(datetime.date(2009,1,1), datetime.datetime.today().date())
 # calculate_mmt(datetime.date(2017,4,1), datetime.date(2017,4,30))
 # calculate_Yield(datetime.date(2017,3,31), datetime.date(2017,4,30))
-calculate_mfd_sum(datetime.date(2017,4,1), datetime.date(2017,4,30),factors=['mfd_buyamt_d','mfd_buyamt_d4'])
+# calculate_mfd_sum(datetime.date(2017,4,1), datetime.date(2017,4,30),factors=['mfd_buyamt_d','mfd_buyamt_d4'])

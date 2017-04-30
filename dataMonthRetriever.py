@@ -3,6 +3,7 @@ from cassandra.cluster import Cluster
 from WindPy import *
 import time
 import datetime
+# import logWriter
 
 def monthRetrieve(startTime, endTime = datetime.datetime.today(),
 fields1 = ['trade_status','close', 'mkt_freeshares','mkt_cap_float', 'mfd_buyamt_d', 'mfd_sellamt_d', 'roa', 'pe', 'pb'], 
@@ -68,16 +69,18 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
 
     ## 拉取因子，分阶段拉取，拉完异步存DB
     if multi_mfd == True:
-        columns = fields1 + ['mfd_buyamt_d2', 'mfd_sellamt_d2','mfd_buyamt_d4', 'mfd_sellamt_d4']
+        # columns = fields1 + ['mfd_buyamt_d2', 'mfd_sellamt_d2','mfd_buyamt_d4', 'mfd_sellamt_d4']
+        columns = fields1 + ['mfd_buyamt_d1', 'mfd_sellamt_d1','mfd_buyamt_d4', 'mfd_sellamt_d4']
     else:
         columns = fields1
     dataList = [] #创建数组
-    cnt = 0   #当前拉取了多少支股票
-    index = 0 #上一次dump的位置，主要目的是通过此索引找到该股票代码
+    cnt = 0 #2401   #当前拉取了多少支股票
+    index = 0 #2401 #上一次dump的位置，主要目的是通过此索引找到该股票代码
     CHUNK_SIZE = 300 #每一次异步dump的股票个数
 
+    print("---- Retrieving factors: ",columns)
     preparedStmt = session.prepare('''INSERT INTO factors_month(stock, factor, time, value) VALUES (?,?,?,?)''')
-    print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " ------ Starting to insert to DB")
+    print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " ------ Starting retrieving...")
 
     # 拉取交易状态便于之后数据过滤
     hasTradeStatus = False
@@ -86,15 +89,25 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
 
     ## 遍历所有股票
     for stock,ipo_date in validStocks.items():
+    # 为了获取剩下不成功的股票从index开始
+    # for m in range(index, len(validStockCode)):
+        # stock = validStockCode[m]
         # 只取 IPO 之后的数据【需求变更，IPO之前的ROA也可能是有用的数据】
         # start = startTime if startTime > ipo_date.date() else ipo_date.date() 
         start = startTime
         # 同一个变量，参数不一样，需要分成几次拉取
-        wsd_data = w.wsd(stock, fields1, start, endTime, option1).Data
+        wsd = w.wsd(stock, fields1, start, endTime, option1)
+        if wsd.ErrorCode != 0:
+            print("--------------------- ERROR IN WIND ------------\r\n ErrorCode：", wsd.ErrorCode, " Stock: ",stock)
+        wsd_data = wsd.Data
         if multi_mfd == True:
             fields2 = ['mfd_buyamt_d', 'mfd_sellamt_d']
-            option2 = "unit=1;traderType=2;Period=M;Fill=Previous;PriceAdj=B"
+            # 机构流入/流出额
+            option2 = "unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B"
+            # 大户流入/流出额
+            # option2 = "unit=1;traderType=2;Period=M;Fill=Previous;PriceAdj=B"
             wsd_data = wsd_data + w.wsd(stock, fields2, start, endTime, option2).Data
+            # 散户流入/流出额
             option3 = "unit=1;traderType=4;Period=M;Fill=Previous;PriceAdj=B"
             wsd_data = wsd_data + w.wsd(stock, fields2, start, endTime, option3).Data
 
@@ -130,7 +143,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
                         except (ValueError, TypeError, KeyError) as e:
                             value = float('nan')
                             print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(value))
-                            print (e)
+                            print ("EXCEPTION: ",e)
                             print ("--------------------------------------------------------------------------")
                         except IndexError as e:
                             print ("--------------------------------------------------------------------------")
@@ -164,7 +177,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
                 except (ValueError, TypeError, KeyError) as e:
                     value = float('nan')
                     print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(value))
-                    print (e)
+                    print ("EXCEPTION: ",e)
                     print ("--------------------------------------------------------------------------")
                 except IndexError as e:
                     print ("--------------------------------------------------------------------------")
@@ -176,7 +189,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
 
     #result testing
     print("---------- Inserstion Testing: ")
-    rows = session.execute("select * from factors_month where stock='000852.SZ' and factor in ('roa', 'trade_status') and time > '2017-01-02'")
+    rows = session.execute("select * from factors_month where stock='600679.SH' and time > '2017-01-02' allow filtering")
     for row in rows:
         print(row.stock,row.factor,row.time,row.value)
 
@@ -184,7 +197,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     cluster.shutdown()
 
 # retrieve newly updated data
-monthRetrieve(datetime.date(2017,4,1), datetime.date(2017,4,30), fields1=['trade_status','close', 'mkt_freeshares','mkt_cap_float','roa'], multi_mfd = False)
-# monthRetrieve(datetime.date(2017,3,31), datetime.date(2017,3,31), fields1=['roa'], multi_mfd = False)
+# monthRetrieve(datetime.date(2017,4,1), datetime.date(2017,4,30), fields1=['trade_status','close', 'mkt_freeshares','mkt_cap_float','roa'], multi_mfd = False)
+# monthRetrieve(datetime.date(2017,1,1), datetime.date(2017,4,30), fields1=['roa'], multi_mfd = False)
 # retrieve data from last year to 3.31 to inherit previous data
-# monthRetrieve(datetime.date(2016,12,1), datetime.date(2017,3,31))
+monthRetrieve(datetime.date(2012,1,1), datetime.date(2017,4,30), fields1=['pe_ttm','pb_lf'], multi_mfd = False)

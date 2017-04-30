@@ -40,13 +40,13 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
     ## 拉取机构/大户/散户买入卖出因子，分阶段拉取，拉完异步存DB
     if multi_mfd == True:
         # columns = fields1 + ['mfd_buyamt_d2', 'mfd_sellamt_d2','mfd_buyamt_d4', 'mfd_sellamt_d4']
-        columns = fields1 + ['mfd_buyamt_d4']
+        columns = fields1 + ['mfd_buyamt_d1', 'mfd_sellamt_d1','mfd_buyamt_d4', 'mfd_sellamt_d4']
     else:
         columns = fields1
     print(columns)
     # 拉取交易状态便于之后数据过滤
     hasTradeStatus = False
-    if len(fields1) > 1 and fields1[0] == 'trade_status':
+    if len(fields1) >= 1 and fields1[0] == 'trade_status':
         hasTradeStatus = True
 
     dataList = [] #创建数组
@@ -62,14 +62,17 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
         # 日数据中无需ROA，只拉取IPO之后的数据减少数据传输
         # start = startTime if startTime > ipo_date.date() else ipo_date.date()
         start = startTime
-        # 同一个变量，参数不一样，需要分成几次拉取
-        wsd_data = w.wsd(stock, fields1, start, endTime, option1).Data
+        wsd = w.wsd(stock, fields1, start, endTime, option1)
+        if wsd.ErrorCode != 0:
+            print("--------------------- ERROR IN WIND ------------\r\n ErrorCode：", wsd.ErrorCode, " Stock: ",stock)
+        wsd_data = wsd.Data
         if multi_mfd == True:
+            # 同一个变量，参数不一样，需要分成几次拉取
             # fields2 = ['mfd_buyamt_d', 'mfd_sellamt_d']
             # 只需要散户买入
-            fields2 = ['mfd_buyamt_d']
-            # option2 = "unit=1;traderType=2;Period=D;Fill=Previous;PriceAdj=B"
-            # wsd_data = wsd_data + w.wsd(stock, fields2, start, endTime, option2).Data
+            fields2 = ['mfd_buyamt_d', 'mfd_sellamt_d']
+            option2 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B"
+            wsd_data = wsd_data + w.wsd(stock, fields2, start, endTime, option2).Data
             option3 = "unit=1;traderType=4;Period=D;Fill=Previous;PriceAdj=B"
             wsd_data = wsd_data + w.wsd(stock, fields2, start, endTime, option3).Data
 
@@ -167,4 +170,5 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
 
 # dailyRetrieve(datetime.date(2017,4,24), datetime.date(2017,4,24), multi_mfd = False)
 # dailyRetrieve(datetime.date(2017,4,7), datetime.datetime.today(), fields1=['close'], multi_mfd = False)
-dailyRetrieve(datetime.date(2017,4,27), datetime.datetime.today().date(),"G:\\log\\daily_mfd_buyamt_d\\4-28", fields1 = ['trade_status','mfd_buyamt_d'],multi_mfd = False)
+# dailyRetrieve(datetime.date(2017,4,27), datetime.datetime.today().date(),"G:\\log\\daily_mfd_buyamt_d\\4-28", fields1 = ['trade_status','mfd_buyamt_d'],multi_mfd = False)
+dailyRetrieve(datetime.date(2012,1,1), datetime.datetime.today().date(),"G:\\log\\daily_mfd_buy_sell_amt_12-17_5", fields1 = ['trade_status'],multi_mfd = True)
