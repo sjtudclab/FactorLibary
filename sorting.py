@@ -42,7 +42,7 @@ def sort_factors(beginDate, endDate=datetime.datetime.today().date(), factors = 
     dateList = []
     for row in rows:
         dateList.append(row.time)
-    print(dateList)
+    print(str(dateList))
     # prepare, Only Sorting Non-NaN Data
     selectPreparedStmt = session.prepare(
         "select * from " + table + " where factor=? and time=? and value < NaN ALLOW FILTERING")
@@ -117,5 +117,5 @@ def sort_factors(beginDate, endDate=datetime.datetime.today().date(), factors = 
 # sort_factors("2015-08-31",endDate="2015-08-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2016-10-31", factors=['mkt_freeshares','mmt','roa_growth','Yield'])
 # sort_factors("2016-10-31",endDate="2015-08-31", factors=['mmt'])
-sort_factors(datetime.date(2012,1,1), datetime.date(2017,4,1), factors=['mfd_buyamt_d','mfd_buyamt_d4'])
+sort_factors(datetime.date(2017,4,1), datetime.date(2017,4,30), factors=['mfd_buyamt_d','mfd_buyamt_d4','mkt_freeshares','mmt','Yield'])
 

@@ -83,4 +83,4 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
 
 ##############################################
 ################# EXAMPLE USAGE ##############
-exportClose("E:\\close.txt",datetime.date(2017,1,1),datetime.date(2017,4,6))
+exportClose("E:\\close2.txt",datetime.date(2017,3,1),datetime.date(2017,4,30))

@@ -8,13 +8,16 @@ from cassandra.cluster import Cluster
 ## 可交易日/周/月
 ## 所有股票名/IPO日期/可交易状态(待修正，每次查询A股都要判断是否处于可交易状态，因此严格来说每次数据获取和导出时都要加判定)
 
-def updateAStocks(extraIndex = []):
+def updateAStocks(day, extraIndex = []):
     # 启动Wind API
     w.start()
     #取全部 A 股股票代码、名称信息(不写field，默认为wind_code & sec_name & date)
-    stocks = w.wset("SectorConstituent",u"sector=全部A股;field=wind_code,sec_name")
+    stocks = w.wset("SectorConstituent","date="+str(day)+";sectorid=a001010100000000;field=wind_code,sec_name")
     data = stocks.Data
-    # size = len(data[0]) 
+    if(stocks.ErrorCode !=0 ):
+        print("WSET ERROR CODE : ", stocks.ErrorCode)
+        exit()
+    print("---- Total stock number: ", len(data[0]))
 
     # indexInfo = []
     # for index in extraIndex:
@@ -41,7 +44,10 @@ def updateAStocks(extraIndex = []):
     #for stock in ["000852.SZ","603788.SH","603987.SH","603988.SH","603989.SH","603990.SH","603991.SH","603993.SH"]:
     # for stock in ["000852.SZ","603788.SH","603990.SH","603991.SH","603993.SH"]:
     for stock in data[0]:
-        ipo_status = w.wsd(stock, "ipo_date, trade_status", datetime.datetime.today())
+        ipo_status = w.wsd(stock, "ipo_date, trade_status", day)
+        if(ipo_status.ErrorCode !=0 ):
+            print("WSD ERROR CODE : ", ipo_status.ErrorCode)
+            exit()
         try:
             days = (datetime.datetime.today() - ipo_status.Data[0][0]).days
             # if  days > 90 and ipo_status.Data[1][0] == "交易":
@@ -160,8 +166,8 @@ def updateStatus(startTime, endTime):
 ## Updating Available A share Stock & transaction_time ##
 #########################################################
 # transaction day
-#updateTransactionTime('2009-01-01')
-# updateTransactionTime('2009-01-01', TYPE='M')
+# updateTransactionTime('2017-04-01')
+# updateTransactionTime('2017-04-01', TYPE='M')
 # update stocks
-updateAStocks(extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])
+updateAStocks(datetime.date(2017,4,28), extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])
 # updateStatus("2015-8-31","2015-8-31")

@@ -46,7 +46,7 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
     colNum = len(stocks)
     rowNum = len(dateList)
     # 数据写入文件中
-    f = open(fileName, "wb")
+    f = open(fileName, "w")
 
     #f.write(str(colNum))
     #f.write('\t')
@@ -83,4 +83,4 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
 
 ##############################################
 ################# EXAMPLE USAGE ##############
-exportClose("D:\\close4.txt",datetime.date(2017,2,1),datetime.date(2017,4,6))
+exportClose("E:\\close.txt",datetime.date(2017,3,1),datetime.date(2017,4,30))

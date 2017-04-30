@@ -36,12 +36,26 @@ def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='fac
 
     # go through all A share stock + Stock Index
     stocks += extraIndex
+    cnt = 0
     for stock in stocks:
         wsd_data = w.wsd(stock, factor, startTime, endTime, option).Data
         for j in range(len(timeList)):
             #print (stock,factor,timeList[j],str(wsd_data[0][j]))
-            session.execute_async(preparedStmt, (stock, factor,timeList[j],wsd_data[0][j]))
-
+            try:
+                value = wsd_data[0][j]
+                if value is not None:
+                    value = float(value)
+                else:
+                    value = 0
+            except (ValueError, TypeError, KeyError) as e:
+                        value = 0
+                        print ("--Log ValueError in ", stock,"\t",str(timeList[j]),"\t",str(value))
+                        print (e)
+                        print ("--------------------------------------------------------------------------")
+            session.execute_async(preparedStmt, (stock, factor,timeList[j], value))
+        cnt += 1
+        if cnt % 300 == 0:
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) ,'------ Dump NO.%d end at stock %s \n' % (cnt, stock))
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '---------------- Persistion finished!\n')
 
     #result testing
@@ -54,4 +68,4 @@ def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='fac
 
 ## add Stock Market Index besides A share stock
 indexes=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH']
-retrieveSingleFactor('close','2009-01-01',extraIndex=indexes)
+retrieveSingleFactor('close','2015-01-01',extraIndex=indexes)

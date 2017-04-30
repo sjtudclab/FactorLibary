@@ -118,6 +118,8 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
             dateList.append(currDay)
         cnt += 1
     # omit 1st one when it's the end of month
+    # add the last day 月末
+    dateList.append(currDay)
     print(" Size of dateList: ",len(dateList))
 
     # if dateList[1].month != beginDate.month:
@@ -127,7 +129,9 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
     if len(dateList) % 2 != 0:
         dateList = dateList[:-1]
     print(dateList)
-
+    if(len(dateList) == 0):
+        print("Length 0 DateList, EXIT ")
+        exit()
     insertPreparedStmt = session.prepare("INSERT INTO "+store_table+" (stock, factor, time, value) VALUES (?,'Yield', ?, ?)")
 
     # get stocks list with IPO_date
@@ -177,7 +181,7 @@ def calculate_Yield(beginDate, endDate, calc_table = "factors_day", store_table 
             session.execute_async(insertPreparedStmt, (stock, item[0], item[1]))
             # print(str(item[0]), item[1])
         # print (stock + " Yield calculation finished",cnt)
-    print(str(len(stocks))," Stock's Momentum Calculation Complete ")
+    print(str(len(stocks))," Stock's Yield Calculation Complete ")
     cluster.shutdown()
 
 # 计算动量模块单独抽取出来，默认为1个月的动量，因为之后可能要计算两个月，三个月的动量
@@ -267,10 +271,10 @@ def calculate_mfd_sum(beginDate, endDate, factors=['mfd_buyamt_d', 'mfd_sellamt_
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '---------------- Calculate %s %s complete!'%(stock, str(factors)))
 ################################
 #### Invoke Function  ##########
-# calculate_mmt(datetime.date(2017,1,26), datetime.date(2017,3,31))
 # calculate_ROA(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
-# calculate_Yield(datetime.date(2016,10,31), datetime.date(2016,10,31))
 # calculate_ROA_growth(datetime.date(2009,1,1), datetime.date(2017,4,1), "factors_month")
 # calculate_Yield(datetime.date(2009,1,1), datetime.datetime.today().date())
 # calculate_mmt(datetime.date(2009,1,1), datetime.datetime.today().date())
-calculate_mfd_sum(datetime.date(2012,1,1), datetime.date(2017,4,27),factors=['mfd_buyamt_d','mfd_buyamt_d4'])
+# calculate_mmt(datetime.date(2017,4,1), datetime.date(2017,4,30))
+# calculate_Yield(datetime.date(2017,3,31), datetime.date(2017,4,30))
+calculate_mfd_sum(datetime.date(2017,4,1), datetime.date(2017,4,30),factors=['mfd_buyamt_d','mfd_buyamt_d4'])

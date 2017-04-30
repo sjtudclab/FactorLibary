@@ -5,7 +5,7 @@ import time
 import datetime
 import csv
 import math
-from dateutil.relativedelta import relativedelta
+# from dateutil.relativedelta import relativedelta
 
 import os
 
@@ -93,9 +93,10 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                 for row in rows:
                     empty = False
                     # IPO Filtering
-                    filterDate = datetime.datetime.strptime(str(day), "%Y-%m-%d") + relativedelta(months=-3)
-                    ipoDate = datetime.datetime.strptime(str(ipo_date), "%Y-%m-%d")
-                    if (filterDate <= ipoDate):
+                    # filterDate = datetime.datetime.strptime(str(day), "%Y-%m-%d") + relativedelta(months=-3)
+                    # ipoDate = datetime.datetime.strptime(str(ipo_date), "%Y-%m-%d")
+                    # if (filterDate <= ipoDate):
+                    if (day.date() - ipo_date.date()).days <= 92:
                         continue
                     if row.factor.find('rank') != -1:
                         rank = math.ceil(row.value / factorSizeMap[row.factor] * 1000) # normalize rank value
@@ -149,4 +150,5 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
 
 ##############################################
 ################# USAGE EXAMPLE ##############
-export('D:\\rongshidata\\alldata_416_2.csv', datetime.date(2015,01,31),datetime.date(2017,03,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
+# export('D:\\rongshidata\\alldata_416_2.csv', datetime.date(2015,1,31),datetime.date(2017,3,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
+export('E:\\train-2016.csv', datetime.date(2016,1,1),datetime.date(2017,3,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'mfd_buyamt_d_rank', 'mfd_buyamt_d4_rank','Yield_rank'])

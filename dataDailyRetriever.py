@@ -167,4 +167,4 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
 
 # dailyRetrieve(datetime.date(2017,4,24), datetime.date(2017,4,24), multi_mfd = False)
 # dailyRetrieve(datetime.date(2017,4,7), datetime.datetime.today(), fields1=['close'], multi_mfd = False)
-dailyRetrieve(datetime.date(2012,1,1), datetime.datetime.today().date(),"G:\\log\\daily_mfd_buyamt_d", fields1 = ['trade_status','mfd_buyamt_d'],multi_mfd = True)
+dailyRetrieve(datetime.date(2017,4,27), datetime.datetime.today().date(),"G:\\log\\daily_mfd_buyamt_d\\4-28", fields1 = ['trade_status','mfd_buyamt_d'],multi_mfd = False)
