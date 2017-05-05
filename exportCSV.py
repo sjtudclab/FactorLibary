@@ -152,3 +152,4 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
 ################# USAGE EXAMPLE ##############
 # export('D:\\rongshidata\\alldata_416_2.csv', datetime.date(2015,1,31),datetime.date(2017,3,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
 export('E:\\train-2017.csv', datetime.date(2017,3,1),datetime.date(2017,4,30),factors=['mkt_freeshares_rank', 'roa_growth_rank', 'mmt_rank', 'mfd_buyamt_d_rank', 'mfd_buyamt_d4_rank','Yield_rank'])
+
