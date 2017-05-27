@@ -166,8 +166,8 @@ def updateStatus(startTime, endTime):
 ## Updating Available A share Stock & transaction_time ##
 #########################################################
 # transaction day
-# updateTransactionTime('2017-04-01')
-# updateTransactionTime('2017-04-01', TYPE='M')
+updateTransactionTime('2017-05-01')
+updateTransactionTime('2017-05-01', TYPE='M')
 # update stocks
-updateAStocks(datetime.date(2017,4,28), extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])
+#updateAStocks(datetime.date(2017,4,28), extraIndex=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH'])
 # updateStatus("2015-8-31","2015-8-31")

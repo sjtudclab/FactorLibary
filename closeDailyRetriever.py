@@ -8,7 +8,7 @@ def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='fac
     # 启动Wind API
     w.start()
 
-    # 获取所有的A股 IPO 目前共[3167]支
+    # 获取所有的A股 IPO 目前共[3167]支//[3211]-5/26
     wset = w.wset("SectorConstituent", u"sector=全部A股;field=wind_code")
     if wset.ErrorCode != 0:
         print("!!!===== WIND ERROR CODE: ", wset.ErrorCode)
@@ -68,4 +68,4 @@ def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='fac
 
 ## add Stock Market Index besides A share stock
 indexes=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH']
-retrieveSingleFactor('close','2015-01-01',extraIndex=indexes)
+retrieveSingleFactor('close','2017-04-01','2017-05-26',extraIndex=indexes)

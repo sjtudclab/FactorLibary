@@ -32,4 +32,4 @@ def persist(logDir, session):
                 print(" --- Error in ",filename,e)
 
 # log("E:\\test\\b\\a.txt", "Insert into a")
-# persist("G:\\log\\daily_mfd_buyamt_d")
+persist("G:\\log\\daily_mfd_buy_sell_amt_17_5-26")
