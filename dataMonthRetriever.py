@@ -198,7 +198,7 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
 
 # retrieve newly updated data
 # monthRetrieve(datetime.date(2017,4,1), datetime.date(2017,4,30), fields1=['trade_status','close', 'mkt_freeshares','mkt_cap_float','roa'], multi_mfd = False)
-monthRetrieve(datetime.date(2017,5,1), datetime.date(2017,5,26), fields1=['trade_status','close', 'mkt_freeshares'], multi_mfd = False)
+monthRetrieve(datetime.date(2017,5,1), datetime.date(2017,5,31), fields1=['trade_status','close', 'mkt_freeshares'], multi_mfd = False)
 # monthRetrieve(datetime.date(2017,1,1), datetime.date(2017,4,30), fields1=['roa'], multi_mfd = False)
 # retrieve data from last year to 3.31 to inherit previous data
 # monthRetrieve(datetime.date(2012,1,1), datetime.date(2017,4,30), fields1=['pe_ttm','pb_lf'], multi_mfd = False)

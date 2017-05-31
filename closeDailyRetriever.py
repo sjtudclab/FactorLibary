@@ -68,4 +68,4 @@ def retrieveSingleFactor(factor, startTime, endTime=datetime.today(), table='fac
 
 ## add Stock Market Index besides A share stock
 indexes=["000001.SH","399001.SZ",'399006.SZ','000300.SH','000016.SH','000905.SH']
-retrieveSingleFactor('close','2017-04-01','2017-05-26',extraIndex=indexes)
+retrieveSingleFactor('close','2017-05-01','2017-05-31',extraIndex=indexes)

@@ -31,10 +31,10 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
     validStocks = {}
     validStockCode = []
     for row in rows:
-        validStocks[row.stock] = row.ipo_date
+        #validStocks[row.stock] = row.ipo_date
         validStockCode.append(row.stock)
 
-    validN = len(validStocks)
+    validN = len(validStockCode)
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " valid stocks' number: ", validN)
 
     ## 拉取机构/大户/散户买入卖出因子，分阶段拉取，拉完异步存DB
@@ -50,15 +50,16 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
         hasTradeStatus = True
 
     dataList = [] #创建数组
-    cnt = 0   #当前拉取了多少支股票
-    index = 0 #上一次dump的位置，主要目的是通过此索引找到该股票代码
+    cnt = 31   #当前拉取了多少支股票
+    index = 31 #上一次dump的位置，主要目的是通过此索引找到该股票代码
     CHUNK_SIZE = 30 #每一次异步dump的股票个数
 
     preparedStmt = session.prepare('''INSERT INTO factors_day(stock, factor, time, value) VALUES (?,?,?,?)''')
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " ------ Starting to insert to DB")
 
     ## 遍历所有股票
-    for stock,ipo_date in validStocks.items():
+    for sPos in range(index, 120):
+        stock = validStockCode[sPos]
         # 日数据中无需ROA，只拉取IPO之后的数据减少数据传输
         # start = startTime if startTime > ipo_date.date() else ipo_date.date()
         start = startTime
@@ -83,36 +84,43 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
             filename = logDir+"\\"+str(startTime)+"_"+str(endTime)+"_"+str(index)+".sql"
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             with open(filename, "w") as file:
-                for s in range(index, cnt):
-                    for i in range(len(columns)):
-                        for j in range(len(dataList[s - index][i])):
-                            #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
-                            try:
-                                value = dataList[s - index][i][j]
-                                if hasTradeStatus == True and i == 0:
-                                    # 交易 状态作为一个因子
-                                    if  value is not None and value == "交易":
-                                        value = 1
+                # try to catch Exception: 'CWSDService: corrupted response.'
+                try:
+                    for s in range(index, cnt):
+                        for i in range(len(columns)):
+                            for j in range(len(dataList[s - index][i])):
+                                #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
+                                try:
+                                    value = dataList[s - index][i][j]
+                                    if hasTradeStatus == True and i == 0:
+                                        # 交易 状态作为一个因子
+                                        if  value is not None and value == "交易":
+                                            value = 1
+                                        else:
+                                            value = 0
+                                    elif value is not None:
+                                        value = float(value)
                                     else:
-                                        value = 0
-                                elif value is not None:
-                                    value = float(value)
-                                else:
+                                        value = float('nan')
+                                except (ValueError, TypeError, KeyError) as e:
                                     value = float('nan')
-                            except (ValueError, TypeError, KeyError) as e:
-                                value = float('nan')
-                                print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(value))
-                                print (e)
-                                print ("--------------------------------------------------------------------------")
-                            except IndexError as e:
-                                print ("--------------------------------------------------------------------------")
-                                print("len s: %d, len i: %d, len j: %d ~ " %(cnt, len(columns),len(timeList)), (s-index,i,j))
-                                print(e)
-                            # session.execute(preparedStmt, (validStockCode[s],columns[i],timeList[j], value))
-                            # 写入文件做log， 之后用程序异步执行插入
-                            if value is None or math.isnan(value) is True :
-                                value = 0
-                            file.write("INSERT INTO factors_day(stock, factor, time, value) VALUES (\'"+validStockCode[s]+"\', \'"+columns[i]+"\',\'"+str(timeList[j])+"\',"+str(value)+" );\n")
+                                    print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(value))
+                                    print (e)
+                                    print ("--------------------------------------------------------------------------")
+                                except IndexError as e:
+                                    print ("--------------------------------------------------------------------------")
+                                    print("len s: %d, len i: %d, len j: %d ~ " %(cnt, len(columns),len(timeList)), (s-index,i,j))
+                                    print(e)
+                                # session.execute(preparedStmt, (validStockCode[s],columns[i],timeList[j], value))
+                                # 写入文件做log， 之后用程序异步执行插入
+                                if value is None or math.isnan(value) is True :
+                                    value = 0
+                                file.write("INSERT INTO factors_day(stock, factor, time, value) VALUES (\'"+validStockCode[s]+"\', \'"+columns[i]+"\',\'"+str(timeList[j])+"\',"+str(value)+" );\n")
+                except IndexError as e:
+                    print("WIND RESPONSE CORRUPT, START OVER! ", e)
+                    cnt = index
+                    sPos = index
+                    continue
             #记录上一次导出数据位置，清空buffer
             index = cnt
             dataList = []
@@ -171,4 +179,4 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
 # dailyRetrieve(datetime.date(2017,4,24), datetime.date(2017,4,24), multi_mfd = False)
 # dailyRetrieve(datetime.date(2017,4,7), datetime.datetime.today(), fields1=['close'], multi_mfd = False)
 # dailyRetrieve(datetime.date(2017,4,27), datetime.datetime.today().date(),"G:\\log\\daily_mfd_buyamt_d\\4-28", fields1 = ['trade_status','mfd_buyamt_d'],multi_mfd = False)
-dailyRetrieve(datetime.date(2017,5,1), datetime.date(2017,5,26),"G:\\log\\daily_mfd_buy_sell_amt_17_5-26", fields1 = ['trade_status'],multi_mfd = True)
+dailyRetrieve(datetime.date(2017,5,26), datetime.date(2017,5,31),"G:\\log\\daily_mfd_buy_sell_amt_17_5-31-3", fields1 = ['trade_status'],multi_mfd = True)

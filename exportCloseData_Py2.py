@@ -26,7 +26,7 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
     #time list
     rows = session.execute('''
         select * from transaction_time 
-        where type= %s and time > %s and time < %s ALLOW FILTERING;''', [TYPE,startTime, endTime])
+        where type= %s and time >= %s and time <= %s ALLOW FILTERING;''', [TYPE,startTime, endTime])
     dateList = []
     SQL = "SELECT value FROM "+table+" WHERE stock = ? AND factor = 'close' and time >= '" + datetime.datetime.strftime( startTime,"%Y-%m-%d") +"' and time <= '" + datetime.datetime.strftime(endTime,"%Y-%m-%d")+"'"
     for row in rows:
@@ -83,4 +83,4 @@ def exportClose(fileName, startTime, endTime=datetime.datetime.today().date(), t
 
 ##############################################
 ################# EXAMPLE USAGE ##############
-exportClose("E:\\close.txt",datetime.date(2017,4,1),datetime.date(2017,5,31))
+exportClose("E:\\close-5-31.txt",datetime.date(2017,5,1),datetime.date(2017,5,31))
