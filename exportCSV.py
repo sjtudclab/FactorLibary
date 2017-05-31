@@ -97,7 +97,8 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                     # ipoDate = datetime.datetime.strptime(str(ipo_date), "%Y-%m-%d")
                     # if (filterDate <= ipoDate):
                     if (day.date() - ipo_date.date()).days <= 92:
-                        continue
+                        empty = True # the stock is invalid
+                        break
                     if row.factor.find('rank') != -1:
                         rank = math.ceil(row.value / factorSizeMap[row.factor] * 1000) # normalize rank value
 
@@ -107,16 +108,18 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
                             ####### CODE Area for Yield Rank Classification ##
                             ##################################################
                             # class 1: [1, 26]
-                            if rank > 1 * 10 and rank < 26 * 10:
+                            if rank >= 3 * 10 and rank <= 18 * 10:
                                 #line.append(1)
                                 dic['Yield_Rank_Class'] = '1'
                             # class 0: [74, 99]
-                            elif rank > 74 * 10 and rank < 99 * 10:
+                            elif rank >= 84 * 10 and rank <= 97 * 10:
                                 #line.append(0)
                                 dic['Yield_Rank_Class'] = '0'
                             else:
                                 #line.append('') #no class, fill in empty char to keep CSV well-formed
-                                dic['Yield_Rank_Class'] = ''
+                                #dic['Yield_Rank_Class'] = ''
+                                empty = True # only need stocks fall in above 2 class
+                                break
                             # line.append(rank)
 
                         dic[row.factor] = rank
@@ -151,5 +154,5 @@ def export(fileName, beginDate, endDate=datetime.datetime.today().date(), factor
 ##############################################
 ################# USAGE EXAMPLE ##############
 # export('D:\\rongshidata\\alldata_416_2.csv', datetime.date(2015,1,31),datetime.date(2017,3,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'roa_growth_rank','Yield_rank'])
-export('E:\\train-2017-5-31.csv', datetime.date(2017,1,1),datetime.date(2017,5,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'mfd_buyamt_d1_rank', 'mfd_buyamt_d4_rank','Yield_rank'])
+export('E:\\train-2016-10-31.csv', datetime.date(2016,10,1),datetime.date(2016,10,31),factors=['mkt_freeshares_rank', 'mmt_rank', 'mfd_buyamt_d1_rank', 'mfd_buyamt_d4_rank','Yield_rank'])
 

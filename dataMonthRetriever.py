@@ -60,10 +60,10 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
     validStocks = {}
     validStockCode = []
     for row in rows:
-        validStocks[row.stock] = row.ipo_date
+        #validStocks[row.stock] = row.ipo_date
         validStockCode.append(row.stock)
 
-    validN = len(validStocks)
+    validN = len(validStockCode)
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " valid stocks' number: ", validN)
     #print (validStocks)
 
@@ -88,7 +88,9 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
         hasTradeStatus = True
 
     ## 遍历所有股票
-    for stock,ipo_date in validStocks.items():
+    pos = index
+    while pos < validN:
+        stock = validStockCode[pos]
     # 为了获取剩下不成功的股票从index开始
     # for m in range(index, len(validStockCode)):
         # stock = validStockCode[m]
@@ -122,34 +124,43 @@ option1 = "ruleType=8;unit=1;traderType=1;Period=M;Fill=Previous;PriceAdj=B", mu
         # wsd_data.append(mmt)
         dataList.append(wsd_data)
         cnt += 1
+        pos += 1
         #阶段性异步导出 dump data asynchronously, 300 stocks / round
         if cnt % CHUNK_SIZE == 0:
             for s in range(index, cnt):
-                for i in range(len(columns)):
-                    for j in range(len(dataList[s - index][i])):
-                        #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
-                        try:
-                            value = dataList[s - index][i][j]
-                            if hasTradeStatus == True and i == 0:
-                                # 交易 状态作为一个因子
-                                if  value is not None and value == "交易":
-                                    value = 1
+                 # try to catch Exception: 'CWSDService: corrupted response.'
+                try:
+                    for i in range(len(columns)):
+                        for j in range(len(dataList[s - index][i])):
+                            #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
+                            try:
+                                value = dataList[s - index][i][j]
+                                if hasTradeStatus == True and i == 0:
+                                    # 交易 状态作为一个因子
+                                    if  value is not None and value == "交易":
+                                        value = 1
+                                    else:
+                                        value = 0
+                                elif value is not None:
+                                    value = float(value)
                                 else:
-                                    value = 0
-                            elif value is not None:
-                                value = float(value)
-                            else:
+                                    value = float('nan')
+                            except (ValueError, TypeError, KeyError) as e:
                                 value = float('nan')
-                        except (ValueError, TypeError, KeyError) as e:
-                            value = float('nan')
-                            print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(value))
-                            print ("EXCEPTION: ",e)
-                            print ("--------------------------------------------------------------------------")
-                        except IndexError as e:
-                            print ("--------------------------------------------------------------------------")
-                            print("len s: %d, len i: %d, len j: %d ~ " %(cnt, len(columns),len(timeList)), (s-index,i,j))
-                            print(e)
-                        session.execute_async(preparedStmt, (validStockCode[s],columns[i],timeList[j], value))
+                                print ("--Log ValueError in ", validStockCode[s],"\t",columns[i],"\t",str(timeList[j]),"\t",str(value))
+                                print ("EXCEPTION: ",e)
+                                print ("--------------------------------------------------------------------------")
+                            except IndexError as e:
+                                print ("--------------------------------------------------------------------------")
+                                print("len s: %d, len i: %d, len j: %d ~ " %(cnt, len(columns),len(timeList)), (s-index,i,j))
+                                print(e)
+                            session.execute_async(preparedStmt, (validStockCode[s],columns[i],timeList[j], value))
+                except IndexError as e:
+                    print ("--------------------------------------------------------------------------")
+                    print("WIND RESPONSE CORRUPT, START OVER!!! ", e)
+                    cnt = index
+                    pos = index
+                    break
             #记录上一次导出数据位置，清空buffer
             index = cnt
             dataList = []

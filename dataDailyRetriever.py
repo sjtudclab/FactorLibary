@@ -50,15 +50,16 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
         hasTradeStatus = True
 
     dataList = [] #创建数组
-    cnt = 31   #当前拉取了多少支股票
-    index = 31 #上一次dump的位置，主要目的是通过此索引找到该股票代码
+    cnt = 0   #当前拉取了多少支股票
+    index = 0 #上一次dump的位置，主要目的是通过此索引找到该股票代码
     CHUNK_SIZE = 30 #每一次异步dump的股票个数
 
     preparedStmt = session.prepare('''INSERT INTO factors_day(stock, factor, time, value) VALUES (?,?,?,?)''')
     print (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) , " ------ Starting to insert to DB")
 
     ## 遍历所有股票
-    for sPos in range(index, 120):
+    sPos = index
+    while sPos < validN:
         stock = validStockCode[sPos]
         # 日数据中无需ROA，只拉取IPO之后的数据减少数据传输
         # start = startTime if startTime > ipo_date.date() else ipo_date.date()
@@ -79,14 +80,15 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
 
         dataList.append(wsd_data)
         cnt += 1
+        sPos += 1
         #阶段性异步导出 dump data asynchronously, 30 stocks / round
         if cnt % CHUNK_SIZE == 0:
             filename = logDir+"\\"+str(startTime)+"_"+str(endTime)+"_"+str(index)+".sql"
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             with open(filename, "w") as file:
-                # try to catch Exception: 'CWSDService: corrupted response.'
-                try:
-                    for s in range(index, cnt):
+                for s in range(index, cnt):
+                    # try to catch Exception: 'CWSDService: corrupted response.'
+                    try:
                         for i in range(len(columns)):
                             for j in range(len(dataList[s - index][i])):
                                 #print (validStocks[s],columns[i],timeList[j],dataList[s - index][i][j])
@@ -116,11 +118,12 @@ option1 = "unit=1;traderType=1;Period=D;Fill=Previous;PriceAdj=B", multi_mfd = T
                                 if value is None or math.isnan(value) is True :
                                     value = 0
                                 file.write("INSERT INTO factors_day(stock, factor, time, value) VALUES (\'"+validStockCode[s]+"\', \'"+columns[i]+"\',\'"+str(timeList[j])+"\',"+str(value)+" );\n")
-                except IndexError as e:
-                    print("WIND RESPONSE CORRUPT, START OVER! ", e)
-                    cnt = index
-                    sPos = index
-                    continue
+                    except IndexError as e:
+                        print ("--------------------------------------------------------------------------")
+                        print("WIND RESPONSE CORRUPT, START OVER!!! ", e)
+                        cnt = index
+                        sPos = index
+                        break
             #记录上一次导出数据位置，清空buffer
             index = cnt
             dataList = []
